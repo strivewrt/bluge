@@ -218,7 +218,7 @@ func newTextField(name string, value []byte, fieldAnalyzer Analyzer) *TermField 
 
 const defaultNumericIndexingOptions = Index | Sortable | Aggregatable
 
-const defaultNumericPrecisionStep uint = 4
+const defaultNumericPrecisionStep uint = 8
 
 func addShiftTokens(tokens analysis.TokenStream, original int64, shiftBy uint, typ analysis.TokenType) analysis.TokenStream {
 	shift := shiftBy
@@ -292,7 +292,7 @@ func DecodeNumericFloat64(value []byte) (float64, error) {
 
 const defaultDateTimeIndexingOptions = Index | Sortable | Aggregatable
 
-const defaultDateTimePrecisionStep uint = 4
+const defaultDateTimePrecisionStep uint = 8
 
 func NewDateTimeField(name string, dt time.Time) *TermField {
 	dtInt64 := dt.UnixNano()

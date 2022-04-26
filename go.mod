@@ -20,3 +20,5 @@ require (
 	golang.org/x/text v0.3.0
 	gonum.org/v1/gonum v0.7.0 // indirect
 )
+
+replace github.com/blugelabs/ice v0.2.0 => ../ice

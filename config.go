@@ -31,7 +31,6 @@ type Config struct {
 	indexConfig index.Config
 	Logger      *log.Logger
 
-	IndexName             string
 	DefaultSearchField    string
 	DefaultSearchAnalyzer *analysis.Analyzer
 	DefaultSimilarity     search.Similarity

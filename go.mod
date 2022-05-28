@@ -12,7 +12,7 @@ require (
 	github.com/blevesearch/snowballstem v0.9.0
 	github.com/blevesearch/vellum v1.0.7
 	github.com/blugelabs/bluge_segment_api v0.2.0
-	github.com/blugelabs/ice v0.2.0
+	github.com/blugelabs/ice v1.0.0
 	github.com/caio/go-tdigest v3.1.0+incompatible
 	github.com/leesper/go_rng v0.0.0-20190531154944-a612b043e353 // indirect
 	github.com/spf13/cobra v0.0.5
@@ -21,6 +21,6 @@ require (
 	gonum.org/v1/gonum v0.7.0 // indirect
 )
 
-replace github.com/blugelabs/ice => github.com/zinclabs/ice v0.2.1-0.20220528034036-923262bcb37d
+replace github.com/blugelabs/ice => github.com/zinclabs/ice v1.1.0
 
-replace github.com/blugelabs/bluge_segment_api => github.com/zinclabs/bluge_segment_api v0.2.1-0.20220523030708-2e8f9721fa17
+replace github.com/blugelabs/bluge_segment_api => github.com/zinclabs/bluge_segment_api v1.0.0

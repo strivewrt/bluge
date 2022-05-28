@@ -591,12 +591,11 @@ func (i *Snapshot) ReadFrom(r io.Reader) (int64, error) {
 	}
 	bytesRead += int64(sz)
 
-	if snapshotFormatVersion == blugeSnapshotFormatVersion1 {
+	switch snapshotFormatVersion {
+	case blugeSnapshotFormatVersion1:
 		n, err := i.readFromVersion1(br)
 		return n + bytesRead, err
-	}
-
-	if snapshotFormatVersion == blugeSnapshotFormatVersion2 {
+	case blugeSnapshotFormatVersion2:
 		n, err := i.readFromVersion2(br)
 		return n + bytesRead, err
 	}
@@ -654,6 +653,19 @@ func (i *Snapshot) readFromVersion2(br *bufio.Reader) (int64, error) {
 		}
 		bytesRead += segmentBytesRead
 
+		// filter segments with time range
+		// timeMin, timeMax := ss.segment.Timestamp()
+		// if i.parent.config.SegmentTimeMin > 0 {
+		// 	if timeMax < i.parent.config.SegmentTimeMin {
+		// 		continue
+		// 	}
+		// }
+		// if i.parent.config.SegmentTimeMax > 0 {
+		// 	if timeMin > i.parent.config.SegmentTimeMax {
+		// 		continue
+		// 	}
+		// }
+
 		i.segment = append(i.segment, ss)
 	}
 
@@ -692,18 +704,18 @@ func (i *Snapshot) readSegmentSnapshot(br *bufio.Reader, snapshotFormatVersion i
 	bytesRead += int64(sz)
 
 	// read segment timestamp
-	var docTimeMin, docTimeMax uint64
-	if snapshotFormatVersion == blugeSnapshotFormatVersion2 {
-		binary.Read(br, binary.BigEndian, &docTimeMin)
-		binary.Read(br, binary.BigEndian, &docTimeMax)
-	}
+	// var docTimeMin, docTimeMax uint64
+	// if snapshotFormatVersion == blugeSnapshotFormatVersion2 {
+	// 	binary.Read(br, binary.BigEndian, &docTimeMin)
+	// 	binary.Read(br, binary.BigEndian, &docTimeMax)
+	// }
 
 	ss = &segmentSnapshot{
 		id:             segmentID,
 		segmentType:    segmentType,
 		segmentVersion: segmentVersion,
-		docTimeMin:     int64(docTimeMin),
-		docTimeMax:     int64(docTimeMax),
+		// docTimeMin:     int64(docTimeMin),
+		// docTimeMax:     int64(docTimeMax),
 	}
 
 	// read size of deleted bitmap

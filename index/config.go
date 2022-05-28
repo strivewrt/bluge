@@ -42,6 +42,10 @@ type Config struct {
 
 	MergeBufferSize int
 
+	// Time filter
+	SegmentTimeMin int64
+	SegmentTimeMax int64
+
 	// Optimizations
 	OptimizeConjunction          bool
 	OptimizeConjunctionUnadorned bool
@@ -98,6 +102,12 @@ func (config Config) WithVirtualField(field segment.Field) Config {
 
 func (config Config) WithNormCalc(calc func(field string, numTerms int) float32) Config {
 	config.NormCalc = calc
+	return config
+}
+
+func (config Config) WithTimeRange(min, max int64) Config {
+	config.SegmentTimeMin = min
+	config.SegmentTimeMax = max
 	return config
 }
 

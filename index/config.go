@@ -43,8 +43,8 @@ type Config struct {
 	MergeBufferSize int
 
 	// Time filter
-	SegmentTimeMin int64
-	SegmentTimeMax int64
+	FilterTimeMin int64
+	FilterTimeMax int64
 
 	// Optimizations
 	OptimizeConjunction          bool
@@ -106,8 +106,8 @@ func (config Config) WithNormCalc(calc func(field string, numTerms int) float32)
 }
 
 func (config Config) WithTimeRange(min, max int64) Config {
-	config.SegmentTimeMin = min
-	config.SegmentTimeMax = max
+	config.FilterTimeMin = min
+	config.FilterTimeMax = max
 	return config
 }
 

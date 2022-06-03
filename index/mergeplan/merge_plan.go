@@ -122,7 +122,7 @@ const MaxSegmentSizeLimit = 1<<31 - 1
 
 // ErrMaxSegmentSizeTooLarge is returned when the size of the segment
 // exceeds the MaxSegmentSizeLimit
-var ErrMaxSegmentSizeTooLarge = errors.New("option MmaxSegmentSize exceeds the size limit")
+var ErrMaxSegmentSizeTooLarge = errors.New("option MaxSegmentSize exceeds the size limit")
 
 // DefaultMergePlanOptions suggests the default options.
 var DefaultMergePlanOptions = Options{

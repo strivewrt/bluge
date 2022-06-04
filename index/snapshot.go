@@ -445,7 +445,8 @@ func (i *Snapshot) unadornedPostingsIterator(
 
 const blugeSnapshotFormatVersion1 = 1
 const blugeSnapshotFormatVersion2 = 2
-const blugeSnapshotFormatVersion = blugeSnapshotFormatVersion2
+const blugeSnapshotFormatVersion3 = 3
+const blugeSnapshotFormatVersion = blugeSnapshotFormatVersion3
 const crcWidth = 4
 
 func (i *Snapshot) WriteTo(w io.Writer, _ chan struct{}) (int64, error) {
@@ -521,6 +522,12 @@ func recordSegment(w io.Writer, snapshot *segmentSnapshot, id uint64, typ string
 	}
 	bytesWritten += sz
 
+	// record segment size
+	binary.Write(w, binary.BigEndian, uint64(snapshot.segment.Size()))
+
+	// record segment docNum
+	binary.Write(w, binary.BigEndian, uint64(snapshot.segment.Count()))
+
 	// record segment timestamp
 	docTimeMin, docTimeMax := snapshot.segment.Timestamp()
 	binary.Write(w, binary.BigEndian, uint64(docTimeMin))
@@ -592,18 +599,15 @@ func (i *Snapshot) ReadFrom(r io.Reader) (int64, error) {
 	bytesRead += int64(sz)
 
 	switch snapshotFormatVersion {
-	case blugeSnapshotFormatVersion1:
-		n, err := i.readFromVersion1(br)
-		return n + bytesRead, err
-	case blugeSnapshotFormatVersion2:
-		n, err := i.readFromVersion2(br)
+	case blugeSnapshotFormatVersion1, blugeSnapshotFormatVersion2, blugeSnapshotFormatVersion3:
+		n, err := i.readFromVersion(br, int(snapshotFormatVersion))
 		return n + bytesRead, err
 	}
 
 	return bytesRead, fmt.Errorf("unsupportred snapshot format version: %d", snapshotFormatVersion)
 }
 
-func (i *Snapshot) readFromVersion1(br *bufio.Reader) (int64, error) {
+func (i *Snapshot) readFromVersion(br *bufio.Reader, snapshotFormatVersion int) (int64, error) {
 	var bytesRead int64
 
 	// read number of segments
@@ -619,35 +623,7 @@ func (i *Snapshot) readFromVersion1(br *bufio.Reader) (int64, error) {
 	bytesRead += int64(sz)
 
 	for j := 0; j < int(numSegments); j++ {
-		segmentBytesRead, ss, err := i.readSegmentSnapshot(br, blugeSnapshotFormatVersion1)
-		if err != nil {
-			return bytesRead, err
-		}
-		bytesRead += segmentBytesRead
-
-		i.segment = append(i.segment, ss)
-	}
-
-	return bytesRead, nil
-}
-
-func (i *Snapshot) readFromVersion2(br *bufio.Reader) (int64, error) {
-	var bytesRead int64
-
-	// read number of segments
-	peek, err := br.Peek(binary.MaxVarintLen64)
-	if err != nil && err != io.EOF {
-		return bytesRead, fmt.Errorf("error peeking snapshot number of segments %d: %w", i.epoch, err)
-	}
-	numSegments, n := binary.Uvarint(peek)
-	sz, err := br.Discard(n)
-	if err != nil {
-		return bytesRead, fmt.Errorf("error reading snapshot number of segments %d: %w", i.epoch, err)
-	}
-	bytesRead += int64(sz)
-
-	for j := 0; j < int(numSegments); j++ {
-		segmentBytesRead, ss, err := i.readSegmentSnapshot(br, blugeSnapshotFormatVersion2)
+		segmentBytesRead, ss, err := i.readSegmentSnapshot(br, snapshotFormatVersion)
 		if err != nil {
 			return bytesRead, err
 		}
@@ -704,9 +680,19 @@ func (i *Snapshot) readSegmentSnapshot(br *bufio.Reader, snapshotFormatVersion i
 	}
 	bytesRead += int64(sz)
 
-	// read segment timestamp
-	var docTimeMin, docTimeMax uint64
-	if snapshotFormatVersion == blugeSnapshotFormatVersion2 {
+	var segmentSize, docNum, docTimeMin, docTimeMax uint64
+	switch snapshotFormatVersion {
+	case blugeSnapshotFormatVersion1:
+	case blugeSnapshotFormatVersion2:
+		// read segment timestamp
+		binary.Read(br, binary.BigEndian, &docTimeMin)
+		binary.Read(br, binary.BigEndian, &docTimeMax)
+	case blugeSnapshotFormatVersion3:
+		// read segment size
+		binary.Read(br, binary.BigEndian, &segmentSize)
+		// read segment docNum
+		binary.Read(br, binary.BigEndian, &docNum)
+		// read segment timestamp
 		binary.Read(br, binary.BigEndian, &docTimeMin)
 		binary.Read(br, binary.BigEndian, &docTimeMax)
 	}
@@ -715,6 +701,8 @@ func (i *Snapshot) readSegmentSnapshot(br *bufio.Reader, snapshotFormatVersion i
 		id:             segmentID,
 		segmentType:    segmentType,
 		segmentVersion: segmentVersion,
+		segmentSize:    uint64(segmentSize),
+		docNum:         uint64(docNum),
 		docTimeMin:     int64(docTimeMin),
 		docTimeMax:     int64(docTimeMax),
 	}

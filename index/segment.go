@@ -60,6 +60,14 @@ func (s segmentSnapshot) LiveSize() int64 {
 	return int64(s.Count())
 }
 
+func (s segmentSnapshot) Bytes() int64 {
+	n := int64(s.segmentSize)
+	if n == 0 {
+		n = int64(s.segment.Size())
+	}
+	return n
+}
+
 func (s *segmentSnapshot) Close() error {
 	return s.segment.Close()
 }

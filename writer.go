@@ -67,6 +67,10 @@ func (w *Writer) Close() error {
 	return w.chill.Close()
 }
 
+func (w *Writer) Status() index.Stats {
+	return w.chill.Stats()
+}
+
 func (w *Writer) Reader() (*Reader, error) {
 	r, err := w.chill.Reader()
 	if err != nil {

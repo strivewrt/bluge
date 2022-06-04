@@ -19,14 +19,11 @@ import (
 )
 
 func (s *Writer) Stats() Stats {
-	// copy current stats
-	rv := s.stats
-
 	// add some computed values
 	numFilesOnDisk, numBytesUsedDisk := s.directory.Stats()
 
-	rv.CurOnDiskBytes = numBytesUsedDisk
-	rv.CurOnDiskFiles = numFilesOnDisk
+	s.stats.CurOnDiskBytes = numBytesUsedDisk
+	s.stats.CurOnDiskFiles = numFilesOnDisk
 
 	return s.stats
 }

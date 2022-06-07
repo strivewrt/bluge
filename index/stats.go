@@ -18,6 +18,10 @@ import (
 	"sync/atomic"
 )
 
+func (s *Writer) DirectoryStats() (numFilesOnDisk, numBytesUsedDisk uint64) {
+	return s.directory.Stats()
+}
+
 func (s *Writer) Stats() Stats {
 	// add some computed values
 	numFilesOnDisk, numBytesUsedDisk := s.directory.Stats()

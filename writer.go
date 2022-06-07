@@ -71,6 +71,10 @@ func (w *Writer) Status() index.Stats {
 	return w.chill.Stats()
 }
 
+func (w *Writer) DirectoryStats() (numFilesOnDisk, numBytesUsedDisk uint64) {
+	return w.chill.DirectoryStats()
+}
+
 func (w *Writer) Reader() (*Reader, error) {
 	r, err := w.chill.Reader()
 	if err != nil {

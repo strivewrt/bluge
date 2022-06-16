@@ -15,6 +15,7 @@
 package bluge
 
 import (
+	"strconv"
 	"time"
 
 	segment "github.com/blugelabs/bluge_segment_api"
@@ -255,6 +256,21 @@ func (n *numericAnalyzer) Analyze(input []byte) analysis.TokenStream {
 			Type:         n.tokenType,
 		},
 	}
+
+	switch n.tokenType {
+	case analysis.Numeric:
+		if origVal, err := DecodeNumericFloat64(input); err == nil {
+			origStr := strconv.FormatFloat(origVal, 'f', -1, 64)
+			tokens = append(tokens, &analysis.Token{
+				Start:        0,
+				End:          len(origStr),
+				Term:         []byte(origStr),
+				PositionIncr: 0,
+				Type:         analysis.AlphaNumeric,
+			})
+		}
+	}
+
 	original, err := numeric.PrefixCoded(input).Int64()
 	if err == nil {
 		tokens = addShiftTokens(tokens, original, n.shiftBy, n.tokenType)

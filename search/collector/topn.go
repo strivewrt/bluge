@@ -244,6 +244,7 @@ func (hc *TopNCollector) collectSingle(ctx *search.Context, d *search.DocumentMa
 	<-d.PipelineFinished
 
 	hc.comparePipeline <- d
+	<-d.PipelineFinished
 
 	return nil
 }
@@ -285,7 +286,7 @@ func (hc *TopNCollector) startConsumePipeline(bucket *search.Bucket) {
 		select {
 		case <-hc.closePipelines:
 			return
-		case d := <-hc.sortPipeline:
+		case d := <-hc.consumePipeline:
 			// calculate aggregations
 			bucket.Consume(d)
 			d.PipelineFinished <- struct{}{} // signal that this pipeline has finished
@@ -298,7 +299,7 @@ func (hc *TopNCollector) startComparePipeline(ctx *search.Context) {
 		select {
 		case <-hc.closePipelines:
 			return
-		case d := <-hc.sortPipeline:
+		case d := <-hc.comparePipeline:
 			// support search after based pagination,
 			// if this hit is <= the search after sort key
 			// we should skip it
@@ -307,6 +308,7 @@ func (hc *TopNCollector) startComparePipeline(ctx *search.Context) {
 				// but we want to allow for exact match, so we pretend
 				hc.searchAfter.HitNumber = d.HitNumber
 				if hc.sort.Compare(d, hc.searchAfter) <= 0 {
+					d.PipelineFinished <- struct{}{} // signal that this pipeline has finished
 					continue
 				}
 			}
@@ -319,6 +321,7 @@ func (hc *TopNCollector) startComparePipeline(ctx *search.Context) {
 				if cmp >= 0 {
 					// this hit can't possibly be in the result set, so avoid heap ops
 					ctx.DocumentMatchPool.Put(d)
+					d.PipelineFinished <- struct{}{} // signal that this pipeline has finished
 					continue
 				}
 			}
@@ -336,6 +339,7 @@ func (hc *TopNCollector) startComparePipeline(ctx *search.Context) {
 					}
 				}
 			}
+			d.PipelineFinished <- struct{}{} // signal that this pipeline has finished
 		}
 	}
 }

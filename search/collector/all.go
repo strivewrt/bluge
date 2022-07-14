@@ -101,7 +101,7 @@ func (a *AllIterator) Next() (next *search.DocumentMatch, err error) {
 	}
 
 	a.hitNumber++
-	next.HitNumber = a.hitNumber
+	next.HitNumber = int64(a.hitNumber)
 
 	if len(a.neededFields) > 0 {
 		err = next.LoadDocumentValues(a.searchContext, a.neededFields)

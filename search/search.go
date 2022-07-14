@@ -94,13 +94,15 @@ type DocumentMatch struct {
 	docValues map[string][][]byte
 
 	// used to maintain natural index order
-	HitNumber int
+	HitNumber int64
 
 	// used to temporarily hold field term location information during
 	// search processing in an efficient, recycle-friendly manner, to
 	// be later incorporated into the Locations map when search
 	// results are completed
 	FieldTermLocations []FieldTermLocation
+
+	PipelineFinished chan struct{}
 }
 
 func (dm *DocumentMatch) SetReader(r MatchReader) {

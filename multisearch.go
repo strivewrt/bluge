@@ -32,6 +32,7 @@ func NewMultiSearcherList(searchers []search.Searcher) *MultiSearcherList {
 	}
 }
 
+// TODO: this is also a source of expensive calls, parallelise this as well
 func (m *MultiSearcherList) Next(ctx *search.Context) (*search.DocumentMatch, error) {
 	if m.err != nil {
 		return nil, m.err

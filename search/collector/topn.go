@@ -16,8 +16,12 @@ package collector
 
 import (
 	"context"
+	"fmt"
+	"sync/atomic"
+	"time"
 
 	"github.com/blugelabs/bluge/search"
+	"github.com/hashicorp/go-multierror"
 )
 
 type collectorStore interface {
@@ -52,6 +56,11 @@ type TopNCollector struct {
 
 	lowestMatchOutsideResults *search.DocumentMatch
 	searchAfter               *search.DocumentMatch
+
+	sortPipeline    chan *search.DocumentMatch
+	consumePipeline chan *search.DocumentMatch
+	comparePipeline chan *search.DocumentMatch
+	closePipelines  chan struct{}
 }
 
 // CheckDoneEvery controls how frequently we check the context deadline
@@ -80,10 +89,14 @@ const switchFromSliceToHeap = 10
 
 func newTopNCollector(size, skip int, sort search.SortOrder, reverse bool) *TopNCollector {
 	hc := &TopNCollector{
-		size:    size,
-		skip:    skip,
-		sort:    sort,
-		reverse: reverse,
+		size:            size,
+		skip:            skip,
+		sort:            sort,
+		reverse:         reverse,
+		sortPipeline:    make(chan *search.DocumentMatch, 10),
+		consumePipeline: make(chan *search.DocumentMatch, 10),
+		comparePipeline: make(chan *search.DocumentMatch, 10),
+		closePipelines:  make(chan struct{}),
 	}
 
 	// pre-allocate space on the store to avoid reslicing
@@ -153,35 +166,49 @@ func (hc *TopNCollector) Collect(ctx context.Context, aggs search.Aggregations,
 
 	bucket := search.NewBucket("", aggs)
 
-	var hitNumber int
+	start := time.Now()
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	default:
 		next, err = searcher.Next(searchContext)
 	}
+
+	//start document processing pipelines
+	go hc.startSortPipeline()
+	go hc.startConsumePipeline(bucket)
+	go hc.startComparePipeline(searchContext)
+
+	var hitNumber int64
+	errs := &multierror.Group{}
+
 	for err == nil && next != nil {
-		if hitNumber%CheckDoneEvery == 0 {
-			select {
-			case <-ctx.Done():
-				return nil, ctx.Err()
-			default:
+		n := next // capture variable
+		errs.Go(func() error {
+			if atomic.LoadInt64(&hitNumber)%CheckDoneEvery == 0 {
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				default:
+				}
 			}
-		}
 
-		hitNumber++
-		next.HitNumber = hitNumber
-
-		err = hc.collectSingle(searchContext, next, bucket)
-		if err != nil {
-			return nil, err
-		}
+			n.HitNumber = atomic.AddInt64(&hitNumber, 1)
+			return hc.collectSingle(searchContext, n)
+		})
 
 		next, err = searcher.Next(searchContext)
 	}
-	if err != nil {
-		return nil, err
+
+	multiErr := errs.Wait().ErrorOrNil()
+
+	fmt.Println("time spent processing docs: ", time.Since(start).Seconds())
+
+	if multiErr != nil {
+		return nil, multiErr
 	}
+
+	close(hc.closePipelines) // signal all pipelines to close, this prevents goroutine leaks
 
 	bucket.Finish()
 
@@ -200,59 +227,24 @@ func (hc *TopNCollector) Collect(ctx context.Context, aggs search.Aggregations,
 	return rv, nil
 }
 
-func (hc *TopNCollector) collectSingle(ctx *search.Context, d *search.DocumentMatch, bucket *search.Bucket) error {
-	var err error
-
+func (hc *TopNCollector) collectSingle(ctx *search.Context, d *search.DocumentMatch) error {
 	if len(hc.neededFields) > 0 {
-		err = d.LoadDocumentValues(ctx, hc.neededFields)
+		err := d.LoadDocumentValues(ctx, hc.neededFields)
 		if err != nil {
 			return err
 		}
 	}
 
-	// compute this hits sort value
-	hc.sort.Compute(d)
+	d.PipelineFinished = make(chan struct{}, 1)
 
-	// calculate aggregations
-	bucket.Consume(d)
+	hc.sortPipeline <- d
+	<-d.PipelineFinished
 
-	// support search after based pagination,
-	// if this hit is <= the search after sort key
-	// we should skip it
-	if hc.searchAfter != nil {
-		// exact sort order matches use hit number to break tie
-		// but we want to allow for exact match, so we pretend
-		hc.searchAfter.HitNumber = d.HitNumber
-		if hc.sort.Compare(d, hc.searchAfter) <= 0 {
-			return nil
-		}
-	}
+	hc.consumePipeline <- d
+	<-d.PipelineFinished
 
-	// optimization, we track lowest sorting hit already removed from heap
-	// with this one comparison, we can avoid all heap operations if
-	// this hit would have been added and then immediately removed
-	if hc.lowestMatchOutsideResults != nil {
-		cmp := hc.sort.Compare(d, hc.lowestMatchOutsideResults)
-		if cmp >= 0 {
-			// this hit can't possibly be in the result set, so avoid heap ops
-			ctx.DocumentMatchPool.Put(d)
-			return nil
-		}
-	}
+	hc.comparePipeline <- d
 
-	removed := hc.store.AddNotExceedingSize(d, hc.size+hc.skip)
-	if removed != nil {
-		if hc.lowestMatchOutsideResults == nil {
-			hc.lowestMatchOutsideResults = removed
-		} else {
-			cmp := hc.sort.Compare(removed, hc.lowestMatchOutsideResults)
-			if cmp < 0 {
-				tmp := hc.lowestMatchOutsideResults
-				hc.lowestMatchOutsideResults = removed
-				ctx.DocumentMatchPool.Put(tmp)
-			}
-		}
-	}
 	return nil
 }
 
@@ -273,4 +265,77 @@ func (hc *TopNCollector) finalizeResults() error {
 	}
 
 	return err
+}
+
+func (hc *TopNCollector) startSortPipeline() {
+	for {
+		select {
+		case <-hc.closePipelines:
+			return
+		case d := <-hc.sortPipeline:
+			// compute this hits sort value
+			hc.sort.Compute(d)
+			d.PipelineFinished <- struct{}{} // signal that this pipeline has finished
+		}
+	}
+}
+
+func (hc *TopNCollector) startConsumePipeline(bucket *search.Bucket) {
+	for {
+		select {
+		case <-hc.closePipelines:
+			return
+		case d := <-hc.sortPipeline:
+			// calculate aggregations
+			bucket.Consume(d)
+			d.PipelineFinished <- struct{}{} // signal that this pipeline has finished
+		}
+	}
+}
+
+func (hc *TopNCollector) startComparePipeline(ctx *search.Context) {
+	for {
+		select {
+		case <-hc.closePipelines:
+			return
+		case d := <-hc.sortPipeline:
+			// support search after based pagination,
+			// if this hit is <= the search after sort key
+			// we should skip it
+			if hc.searchAfter != nil {
+				// exact sort order matches use hit number to break tie
+				// but we want to allow for exact match, so we pretend
+				hc.searchAfter.HitNumber = d.HitNumber
+				if hc.sort.Compare(d, hc.searchAfter) <= 0 {
+					continue
+				}
+			}
+
+			// optimization, we track lowest sorting hit already removed from heap
+			// with this one comparison, we can avoid all heap operations if
+			// this hit would have been added and then immediately removed
+			if hc.lowestMatchOutsideResults != nil {
+				cmp := hc.sort.Compare(d, hc.lowestMatchOutsideResults)
+				if cmp >= 0 {
+					// this hit can't possibly be in the result set, so avoid heap ops
+					ctx.DocumentMatchPool.Put(d)
+					continue
+				}
+			}
+
+			removed := hc.store.AddNotExceedingSize(d, hc.size+hc.skip)
+			if removed != nil {
+				if hc.lowestMatchOutsideResults == nil {
+					hc.lowestMatchOutsideResults = removed
+				} else {
+					cmp := hc.sort.Compare(removed, hc.lowestMatchOutsideResults)
+					if cmp < 0 {
+						tmp := hc.lowestMatchOutsideResults
+						hc.lowestMatchOutsideResults = removed
+						ctx.DocumentMatchPool.Put(tmp)
+					}
+				}
+			}
+		}
+	}
 }

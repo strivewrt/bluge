@@ -39,6 +39,7 @@ type MultiSearcherList struct {
 func NewMultiSearcherList(searchers []search.Searcher) *MultiSearcherList {
 	return &MultiSearcherList{
 		searchers:          searchers,
+		docs:               make([]*search.DocumentMatch, 0, len(searchers)*10),
 		docChan:            make(chan *search.DocumentMatch, len(searchers)*10),
 		finishedCollecting: make(chan struct{}),
 	}
@@ -79,12 +80,19 @@ func (m *MultiSearcherList) collectAllDocuments(ctx *search.Context) {
 // A dilemma here, should MultiSearcherList.Next listen on finishedCollecting and then begin dispersing documents?
 // or just return documents directly from docChan?
 func (m *MultiSearcherList) storeDocs() {
-	match, ok := <-m.docChan
-	if !ok {
-		close(m.finishedCollecting)
-		return
+	seen := map[*search.DocumentMatch]bool{}
+	for {
+		match, ok := <-m.docChan
+		if !ok {
+			close(m.finishedCollecting)
+			return
+		}
+
+		if !seen[match] {
+			m.docs = append(m.docs, match)
+			seen[match] = true
+		}
 	}
-	m.docs = append(m.docs, match)
 }
 
 // TODO: this is also a source of expensive calls, parallelise this as well

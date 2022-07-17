@@ -823,5 +823,6 @@ func (dvr *documentValueReader) VisitDocumentValues(number uint64,
 		}
 	}
 
-	return dvr.sdvr.VisitDocumentValues(localDocNum, visitor)
+	err = dvr.sdvr.VisitDocumentValues(localDocNum, visitor)
+	return err
 }

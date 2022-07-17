@@ -16,9 +16,7 @@ package collector
 
 import (
 	"context"
-	"fmt"
 	"sync/atomic"
-	"time"
 
 	"github.com/blugelabs/bluge/search"
 	"github.com/hashicorp/go-multierror"
@@ -166,7 +164,6 @@ func (hc *TopNCollector) Collect(ctx context.Context, aggs search.Aggregations,
 
 	bucket := search.NewBucket("", aggs)
 
-	start := time.Now()
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
@@ -200,9 +197,12 @@ func (hc *TopNCollector) Collect(ctx context.Context, aggs search.Aggregations,
 		next, err = searcher.Next(searchContext)
 	}
 
-	multiErr := errs.Wait().ErrorOrNil()
+	// check searcher.Next error
+	if err != nil {
+		return nil, err
+	}
 
-	fmt.Println("time spent processing docs: ", time.Since(start).Seconds())
+	multiErr := errs.Wait().ErrorOrNil()
 
 	if multiErr != nil {
 		return nil, multiErr

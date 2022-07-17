@@ -14,6 +14,8 @@
 
 package search
 
+import "sync"
+
 // DocumentMatchPoolTooSmall is a callback function that can be executed
 // when the DocumentMatchPool does not have sufficient capacity
 // By default we just perform just-in-time allocation, but you could log
@@ -25,6 +27,7 @@ type DocumentMatchPoolTooSmall func(p *DocumentMatchPool) *DocumentMatch
 // number of instances.  It is not thread-safe as currently all
 // aspects of search take place in a single goroutine.
 type DocumentMatchPool struct {
+	lock     sync.Mutex // prevent data race on avail
 	avail    DocumentMatchCollection
 	TooSmall DocumentMatchPoolTooSmall
 }
@@ -60,12 +63,16 @@ func NewDocumentMatchPool(size, sortSize int) *DocumentMatchPool {
 // occur to satisfy this request.  As a side-effect this will grow the size
 // of the pool.
 func (p *DocumentMatchPool) Get() *DocumentMatch {
+	p.lock.Lock()
+
 	var rv *DocumentMatch
 	if len(p.avail) > 0 {
 		rv, p.avail = p.avail[len(p.avail)-1], p.avail[:len(p.avail)-1]
 	} else {
 		rv = p.TooSmall(p)
 	}
+
+	p.lock.Unlock()
 	return rv
 }
 
@@ -76,5 +83,8 @@ func (p *DocumentMatchPool) Put(d *DocumentMatch) {
 	}
 	// reset DocumentMatch before returning it to available pool
 	d.Reset()
+
+	p.lock.Lock()
 	p.avail = append(p.avail, d)
+	p.lock.Unlock()
 }

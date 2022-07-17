@@ -235,16 +235,17 @@ func (hc *TopNCollector) collectSingle(ctx *search.Context, d *search.DocumentMa
 		}
 	}
 
-	d.PipelineFinished = make(chan struct{})
+	pf := make(chan struct{})
+	d.PipelineFinished = pf
 
 	hc.sortPipeline <- d
-	<-d.PipelineFinished
+	<-pf
 
 	hc.consumePipeline <- d
-	<-d.PipelineFinished
+	<-pf
 
 	hc.comparePipeline <- d
-	<-d.PipelineFinished
+	<-pf
 
 	return nil
 }
@@ -319,9 +320,12 @@ func (hc *TopNCollector) startComparePipeline(ctx *search.Context) {
 			if hc.lowestMatchOutsideResults != nil {
 				cmp := hc.sort.Compare(d, hc.lowestMatchOutsideResults)
 				if cmp >= 0 {
+					// signal that this pipeline has finished, we call this before putting the doc back in
+					// the pool, to avoid a race when d.Reset is called in DocumentMatchPool.Put
+					d.PipelineFinished <- struct{}{}
+
 					// this hit can't possibly be in the result set, so avoid heap ops
 					ctx.DocumentMatchPool.Put(d)
-					d.PipelineFinished <- struct{}{} // signal that this pipeline has finished
 					continue
 				}
 			}

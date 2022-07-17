@@ -235,7 +235,7 @@ func (hc *TopNCollector) collectSingle(ctx *search.Context, d *search.DocumentMa
 		}
 	}
 
-	d.PipelineFinished = make(chan struct{}, 1)
+	d.PipelineFinished = make(chan struct{})
 
 	hc.sortPipeline <- d
 	<-d.PipelineFinished

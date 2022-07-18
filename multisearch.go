@@ -80,7 +80,6 @@ func (m *MultiSearcherList) collectAllDocuments(ctx *search.Context) {
 // A dilemma here, should MultiSearcherList.Next listen on finishedCollecting and then begin dispersing documents?
 // or just return documents directly from docChan?
 func (m *MultiSearcherList) storeDocs() {
-	seen := map[*search.DocumentMatch]bool{}
 	for {
 		match, ok := <-m.docChan
 		if !ok {
@@ -88,10 +87,7 @@ func (m *MultiSearcherList) storeDocs() {
 			return
 		}
 
-		if !seen[match] {
-			m.docs = append(m.docs, match)
-			seen[match] = true
-		}
+		m.docs = append(m.docs, match)
 	}
 }
 
@@ -146,7 +142,7 @@ func MultiSearch(ctx context.Context, req SearchRequest, readers ...*Reader) (se
 		}
 		searchers = append(searchers, searcher)
 	}
-	fmt.Println("time spent arranging readers: ", time.Since(start).Microseconds())
+	fmt.Println("time spent arranging readers: ", time.Since(start).Milliseconds())
 
 	msl := NewMultiSearcherList(searchers)
 	dmItr, err := collector.Collect(ctx, req.Aggregations(), msl)

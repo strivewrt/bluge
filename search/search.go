@@ -104,6 +104,7 @@ type DocumentMatch struct {
 	FieldTermLocations []FieldTermLocation
 
 	PipelineFinished chan struct{}
+	Err              error
 }
 
 func (dm *DocumentMatch) SetReader(r MatchReader) {

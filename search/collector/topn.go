@@ -55,10 +55,11 @@ type TopNCollector struct {
 	lowestMatchOutsideResults *search.DocumentMatch
 	searchAfter               *search.DocumentMatch
 
-	sortPipeline    chan *search.DocumentMatch
-	consumePipeline chan *search.DocumentMatch
-	comparePipeline chan *search.DocumentMatch
-	closePipelines  chan struct{}
+	loadDocValuesPipeline chan *search.DocumentMatch
+	sortPipeline          chan *search.DocumentMatch
+	consumePipeline       chan *search.DocumentMatch
+	comparePipeline       chan *search.DocumentMatch
+	closePipelines        chan struct{}
 }
 
 // CheckDoneEvery controls how frequently we check the context deadline
@@ -87,14 +88,15 @@ const switchFromSliceToHeap = 10
 
 func newTopNCollector(size, skip int, sort search.SortOrder, reverse bool) *TopNCollector {
 	hc := &TopNCollector{
-		size:            size,
-		skip:            skip,
-		sort:            sort,
-		reverse:         reverse,
-		sortPipeline:    make(chan *search.DocumentMatch, 10),
-		consumePipeline: make(chan *search.DocumentMatch, 10),
-		comparePipeline: make(chan *search.DocumentMatch, 10),
-		closePipelines:  make(chan struct{}),
+		size:                  size,
+		skip:                  skip,
+		sort:                  sort,
+		reverse:               reverse,
+		loadDocValuesPipeline: make(chan *search.DocumentMatch, 10),
+		sortPipeline:          make(chan *search.DocumentMatch, 10),
+		consumePipeline:       make(chan *search.DocumentMatch, 10),
+		comparePipeline:       make(chan *search.DocumentMatch, 10),
+		closePipelines:        make(chan struct{}),
 	}
 
 	// pre-allocate space on the store to avoid reslicing
@@ -172,6 +174,7 @@ func (hc *TopNCollector) Collect(ctx context.Context, aggs search.Aggregations,
 	}
 
 	//start document processing pipelines
+	go hc.startLoadDocValuesPipeline(searchContext)
 	go hc.startSortPipeline()
 	go hc.startConsumePipeline(bucket)
 	go hc.startComparePipeline(searchContext)
@@ -191,7 +194,7 @@ func (hc *TopNCollector) Collect(ctx context.Context, aggs search.Aggregations,
 			}
 
 			n.HitNumber = atomic.AddInt64(&hitNumber, 1)
-			return hc.collectSingle(searchContext, n)
+			return hc.collectSingle(n)
 		})
 
 		next, err = searcher.Next(searchContext)
@@ -227,16 +230,16 @@ func (hc *TopNCollector) Collect(ctx context.Context, aggs search.Aggregations,
 	return rv, nil
 }
 
-func (hc *TopNCollector) collectSingle(ctx *search.Context, d *search.DocumentMatch) error {
-	if len(hc.neededFields) > 0 {
-		err := d.LoadDocumentValues(ctx, hc.neededFields)
-		if err != nil {
-			return err
-		}
-	}
-
+func (hc *TopNCollector) collectSingle(d *search.DocumentMatch) error {
 	pf := make(chan struct{})
 	d.PipelineFinished = pf
+
+	hc.loadDocValuesPipeline <- d
+	<-pf
+
+	if d.Err != nil {
+		return d.Err
+	}
 
 	hc.sortPipeline <- d
 	<-pf
@@ -269,6 +272,20 @@ func (hc *TopNCollector) finalizeResults() error {
 	return err
 }
 
+func (hc *TopNCollector) startLoadDocValuesPipeline(ctx *search.Context) {
+	for {
+		select {
+		case <-hc.closePipelines:
+			return
+		case d := <-hc.loadDocValuesPipeline:
+			if len(hc.neededFields) > 0 {
+				d.Err = d.LoadDocumentValues(ctx, hc.neededFields)
+			}
+			d.PipelineFinished <- struct{}{} // signal that this pipeline has finished
+		}
+	}
+}
+
 func (hc *TopNCollector) startSortPipeline() {
 	for {
 		select {
@@ -276,6 +293,11 @@ func (hc *TopNCollector) startSortPipeline() {
 			return
 		case d := <-hc.sortPipeline:
 			// compute this hits sort value
+
+			if d.Err != nil {
+				continue
+			}
+
 			hc.sort.Compute(d)
 			d.PipelineFinished <- struct{}{} // signal that this pipeline has finished
 		}
@@ -289,6 +311,10 @@ func (hc *TopNCollector) startConsumePipeline(bucket *search.Bucket) {
 			return
 		case d := <-hc.consumePipeline:
 			// calculate aggregations
+			if d.Err != nil {
+				continue
+			}
+
 			bucket.Consume(d)
 			d.PipelineFinished <- struct{}{} // signal that this pipeline has finished
 		}
@@ -301,6 +327,10 @@ func (hc *TopNCollector) startComparePipeline(ctx *search.Context) {
 		case <-hc.closePipelines:
 			return
 		case d := <-hc.comparePipeline:
+			if d.Err != nil {
+				continue
+			}
+
 			// support search after based pagination,
 			// if this hit is <= the search after sort key
 			// we should skip it

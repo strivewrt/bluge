@@ -29,14 +29,16 @@ func init() {
 	reflectStaticSizeExplanation = int(reflect.TypeOf(e).Size())
 	var dm DocumentMatch
 	reflectStaticSizeDocumentMatch = int(reflect.TypeOf(dm).Size())
-	var sc = newSliceContext(0, 0)
+	var sc sliceContext
 	reflectStaticSizeSliceSearchContext = int(reflect.TypeOf(sc).Size())
-	var spc = newSearchSyncPoolContext(0, 0)
+	var spc syncPoolContext
 	reflectStaticSizeSyncPoolSearchContext = int(reflect.TypeOf(spc).Size())
 	var l Location
 	reflectStaticSizeLocation = int(reflect.TypeOf(l).Size())
-	var dmp DocumentMatchSlicePool
-	reflectStaticSizeDocumentMatchPool = int(reflect.TypeOf(dmp).Size())
+	var dmsp DocumentMatchSlicePool
+	reflectStaticSizeDocumentMatchSlicePool = int(reflect.TypeOf(dmsp).Size())
+	var dssp DocumentMatchSyncPool
+	reflectStaticSizeDocumentMatchSyncPool = int(reflect.TypeOf(dssp).Size())
 }
 
 var sizeOfPtr int
@@ -48,4 +50,5 @@ var reflectStaticSizeDocumentMatch int
 var reflectStaticSizeSliceSearchContext int
 var reflectStaticSizeSyncPoolSearchContext int
 var reflectStaticSizeLocation int
-var reflectStaticSizeDocumentMatchPool int
+var reflectStaticSizeDocumentMatchSlicePool int
+var reflectStaticSizeDocumentMatchSyncPool int

@@ -36,7 +36,7 @@ func NewDocumentMatchSyncPool(size, sortSize int) *DocumentMatchSyncPool {
 	pool := &sync.Pool{
 		New: func() interface{} {
 			return &DocumentMatch{
-				SortValue: make([][]byte, size*sortSize),
+				SortValue: make([][]byte, sortSize),
 				NewAlloc:  true,
 			}
 		},

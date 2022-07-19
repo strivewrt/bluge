@@ -5,6 +5,7 @@ import (
 )
 
 // sliceContext represents the context around a single search
+// It is not safe for concurrent use.
 type sliceContext struct {
 	DocumentMatchPool *DocumentMatchSlicePool
 	dvReaders         map[DocumentValueReadable]segment.DocumentValueReader
@@ -53,7 +54,7 @@ func (sc *sliceContext) DocValueReaderForReader(r DocumentValueReadable, fields 
 // Size returns the sliceContext 's size in memory.
 func (sc *sliceContext) Size() int64 {
 	sizeInBytes := reflectStaticSizeSliceSearchContext + sizeOfPtr +
-		reflectStaticSizeDocumentMatchPool + sizeOfPtr
+		reflectStaticSizeDocumentMatchSlicePool + sizeOfPtr
 
 	if sc.DocumentMatchPool != nil {
 		for _, entry := range sc.DocumentMatchPool.avail {

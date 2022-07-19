@@ -1766,7 +1766,7 @@ func TestBug87(t *testing.T) {
 	// create 1025 documents in a batch
 	// this should require more than one chunk in doc values
 	batch := NewBatch()
-	for i := 0; i < 1025*2; i++ {
+	for i := 0; i < 1025; i++ {
 		doc := NewDocument(fmt.Sprintf("%d", i)).
 			AddField(NewTextField("name", "marty").Sortable())
 		batch.Update(doc.ID(), doc)

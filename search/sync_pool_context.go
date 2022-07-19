@@ -7,6 +7,7 @@ import (
 )
 
 // syncPoolContext represents the context around a single search
+// It is safe for concurrent use.
 type syncPoolContext struct {
 	lock              sync.RWMutex // prevent data race on dvReaders
 	DocumentMatchPool *DocumentMatchSyncPool
@@ -40,11 +41,9 @@ func (sc *syncPoolContext) DocValueReaderForReader(r DocumentValueReadable, fiel
 }
 
 // Size returns the search syncPoolContext's size in memory.
-// IT SHOULD NOT BE CALLED INCESSANTLY FOR PERFORMANCE REASONS.
-// It can increase lock contention for the syncPoolContext.DocumentMatchPool field
 func (sc *syncPoolContext) Size() int64 {
 	sizeInBytes := reflectStaticSizeSyncPoolSearchContext + sizeOfPtr +
-		reflectStaticSizeDocumentMatchPool + sizeOfPtr
+		reflectStaticSizeDocumentMatchSyncPool + sizeOfPtr
 
 	var dpSize int64
 	if sc.DocumentMatchPool != nil {

@@ -70,7 +70,7 @@ func TestMultiSearch(t *testing.T) {
 	prepareDocs(indexWriter1, 5000)
 
 	q := NewPrefixQuery("index-").SetField("name")
-	req := NewTopNSearch(6, q).WithStandardAggregations()
+	req := NewTopNSearch(10, q).WithStandardAggregations()
 
 	start := time.Now()
 	dmi, err := MultiSearch(context.Background(), req, indexReader1, indexReader2)

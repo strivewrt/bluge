@@ -35,7 +35,10 @@ type DocumentMatchSyncPool struct {
 func NewDocumentMatchSyncPool(size, sortSize int) *DocumentMatchSyncPool {
 	pool := &sync.Pool{
 		New: func() interface{} {
-			return &DocumentMatch{NewAlloc: true}
+			return &DocumentMatch{
+				NewAlloc:  true,
+				SortValue: make([][]byte, 0, sortSize),
+			}
 		},
 	}
 
@@ -47,7 +50,7 @@ func NewDocumentMatchSyncPool(size, sortSize int) *DocumentMatchSyncPool {
 	i := 0
 	for i < size {
 		d := &startBlock[i]
-		d.SortValue = make([][]byte, size*sortSize)
+		d.SortValue = make([][]byte, 0, sortSize)
 		poolSize += int64(d.Size())
 		pool.Put(d)
 		i++
@@ -80,8 +83,8 @@ func (p *DocumentMatchSyncPool) Put(d *DocumentMatch) {
 	if d == nil {
 		return
 	}
-	// reset DocumentMatch before returning it to available pool
-	d.Reset()
+
+	d.Reset() // reset DocumentMatch before returning it to available pool
 	p.pool.Put(d)
 	atomic.AddInt64(&p.size, int64(d.Size()))
 }

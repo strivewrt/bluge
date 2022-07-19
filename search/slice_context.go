@@ -5,7 +5,7 @@ import (
 )
 
 // sliceContext represents the context around a single search
-// It is not safe for concurrent use.
+// It is not safe  for concurrent use.
 type sliceContext struct {
 	DocumentMatchPool *DocumentMatchSlicePool
 	dvReaders         map[DocumentValueReadable]segment.DocumentValueReader

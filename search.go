@@ -258,7 +258,7 @@ func memNeededForSearch(
 	// overhead, size in bytes from collector
 	estimate += coll.Size()
 
-	// pre-allocing DocumentMatchPool
+	// pre-allocing DocumentMatchSlicePool
 	estimate += searchContextEmptySize + numDocMatches*documentMatchEmptySize
 
 	// searcher overhead

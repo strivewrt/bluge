@@ -42,7 +42,7 @@ func (f *FilteringSearcher) Size() int {
 		f.child.Size()
 }
 
-func (f *FilteringSearcher) Next(ctx *search.Context) (*search.DocumentMatch, error) {
+func (f *FilteringSearcher) Next(ctx search.Context) (*search.DocumentMatch, error) {
 	next, err := f.child.Next(ctx)
 	for next != nil && err == nil {
 		if f.accept(next) {
@@ -53,7 +53,7 @@ func (f *FilteringSearcher) Next(ctx *search.Context) (*search.DocumentMatch, er
 	return nil, err
 }
 
-func (f *FilteringSearcher) Advance(ctx *search.Context, number uint64) (*search.DocumentMatch, error) {
+func (f *FilteringSearcher) Advance(ctx search.Context, number uint64) (*search.DocumentMatch, error) {
 	adv, err := f.child.Advance(ctx, number)
 	if err != nil {
 		return nil, err

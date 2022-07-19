@@ -64,9 +64,7 @@ func TestPhraseSearch(t *testing.T) {
 			}
 		}()
 
-		ctx := &search.Context{
-			DocumentMatchPool: search.NewDocumentMatchPool(test.searcher.DocumentMatchPoolSize(), 0),
-		}
+		ctx := search.NewSearchContext(test.searcher.DocumentMatchPoolSize(), 0, search.PoolTypeSlice)
 		next, err := test.searcher.Next(ctx)
 		i := 0
 		for err == nil && next != nil {
@@ -93,7 +91,7 @@ func TestPhraseSearch(t *testing.T) {
 				}
 			}
 
-			ctx.DocumentMatchPool.Put(next)
+			ctx.PutDocumentMatchInPool(next)
 			next, err = test.searcher.Next(ctx)
 			i++
 		}
@@ -130,14 +128,13 @@ func TestMultiPhraseSearch(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		ctx := &search.Context{
-			DocumentMatchPool: search.NewDocumentMatchPool(searcher.DocumentMatchPoolSize(), 0),
-		}
+
+		ctx := search.NewSearchContext(searcher.DocumentMatchPoolSize(), 0, search.PoolTypeSlice)
 		next, err := searcher.Next(ctx)
 		var actualIds []uint64
 		for err == nil && next != nil {
 			actualIds = append(actualIds, next.Number)
-			ctx.DocumentMatchPool.Put(next)
+			ctx.PutDocumentMatchInPool(next)
 			next, err = searcher.Next(ctx)
 		}
 		if err != nil {
@@ -212,14 +209,13 @@ func TestSloppyMultiPhraseSearch(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		ctx := &search.Context{
-			DocumentMatchPool: search.NewDocumentMatchPool(searcher.DocumentMatchPoolSize(), 0),
-		}
+
+		ctx := search.NewSearchContext(searcher.DocumentMatchPoolSize(), 0, search.PoolTypeSlice)
 		next, err := searcher.Next(ctx)
 		actualIds := []uint64{}
 		for err == nil && next != nil {
 			actualIds = append(actualIds, next.Number)
-			ctx.DocumentMatchPool.Put(next)
+			ctx.PutDocumentMatchInPool(next)
 			next, err = searcher.Next(ctx)
 		}
 		if err != nil {

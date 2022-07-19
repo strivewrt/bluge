@@ -46,7 +46,7 @@ func NewMultiSearcherList(searchers []search.Searcher) *MultiSearcherList {
 }
 
 // if one searcher fails, should stop all the rest and exit?
-func (m *MultiSearcherList) collectAllDocuments(ctx *search.Context) {
+func (m *MultiSearcherList) collectAllDocuments(ctx search.Context) {
 	errs := &multierror.Group{}
 
 	var numFailed int64 = 0
@@ -91,8 +91,7 @@ func (m *MultiSearcherList) storeDocs() {
 	}
 }
 
-// TODO: this is also a source of expensive calls, parallelise this as well
-func (m *MultiSearcherList) Next(ctx *search.Context) (*search.DocumentMatch, error) {
+func (m *MultiSearcherList) Next(ctx search.Context) (*search.DocumentMatch, error) {
 	m.once.Do(func() {
 		go m.collectAllDocuments(ctx)
 		go m.storeDocs() // see comment on storeDocs

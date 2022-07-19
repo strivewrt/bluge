@@ -209,15 +209,13 @@ func TestTermRangeSearch(t *testing.T) {
 		}
 
 		var got []uint64
-		ctx := &search.Context{
-			DocumentMatchPool: search.NewDocumentMatchPool(
-				searcher.DocumentMatchPoolSize(), 0),
-		}
+
+		ctx := search.NewSearchContext(searcher.DocumentMatchPoolSize(), 0, search.PoolTypeSlice)
 		next, err := searcher.Next(ctx)
 		i := 0
 		for err == nil && next != nil {
 			got = append(got, next.Number)
-			ctx.DocumentMatchPool.Put(next)
+			ctx.PutDocumentMatchInPool(next)
 			next, err = searcher.Next(ctx)
 			i++
 		}

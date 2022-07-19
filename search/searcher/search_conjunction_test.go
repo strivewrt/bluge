@@ -182,9 +182,7 @@ func TestConjunctionSearch(t *testing.T) {
 			}
 		}()
 
-		ctx := &search.Context{
-			DocumentMatchPool: search.NewDocumentMatchPool(10, 0),
-		}
+		ctx := search.NewSearchContext(10, 0, search.PoolTypeSlice)
 		next, err := test.searcher.Next(ctx)
 		i := 0
 		for err == nil && next != nil {

@@ -31,8 +31,14 @@ var sizeOfBool int
 func init() {
 	var dm search.DocumentMatch
 	documentMatchEmptySize = dm.Size()
-	var sc search.Context
-	searchContextEmptySize = sc.Size()
+
+	var sc = search.NewSearchContext(0, 0, search.PoolTypeSlice)
+	var spc = search.NewSearchContext(0, 0, search.PoolTypeSyncPool)
+	searchContextEmptySize = int(sc.Size()) // down-casting might give inaccurate results, depending on system arch, but we usually use 64bit so this should be fine
+	if spc.Size() > sc.Size() {
+		searchContextEmptySize = int(spc.Size())
+	}
+
 	var f TermField
 	reflectStaticSizeBaseField = int(reflect.TypeOf(f).Size())
 	var slice []int

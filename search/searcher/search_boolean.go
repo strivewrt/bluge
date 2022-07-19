@@ -71,12 +71,12 @@ func (s *BooleanSearcher) Size() int {
 	return sizeInBytes
 }
 
-func (s *BooleanSearcher) initSearchers(ctx *search.Context) error {
+func (s *BooleanSearcher) initSearchers(ctx search.Context) error {
 	var err error
 	// get all searchers pointing at their first match
 	if s.mustSearcher != nil {
 		if s.currMust != nil {
-			ctx.DocumentMatchPool.Put(s.currMust)
+			ctx.PutDocumentMatchInPool(s.currMust)
 		}
 		s.currMust, err = s.mustSearcher.Next(ctx)
 		if err != nil {
@@ -86,7 +86,7 @@ func (s *BooleanSearcher) initSearchers(ctx *search.Context) error {
 
 	if s.shouldSearcher != nil {
 		if s.currShould != nil {
-			ctx.DocumentMatchPool.Put(s.currShould)
+			ctx.PutDocumentMatchInPool(s.currShould)
 		}
 		s.currShould, err = s.shouldSearcher.Next(ctx)
 		if err != nil {
@@ -96,7 +96,7 @@ func (s *BooleanSearcher) initSearchers(ctx *search.Context) error {
 
 	if s.mustNotSearcher != nil {
 		if s.currMustNot != nil {
-			ctx.DocumentMatchPool.Put(s.currMustNot)
+			ctx.PutDocumentMatchInPool(s.currMustNot)
 		}
 		s.currMustNot, err = s.mustNotSearcher.Next(ctx)
 		if err != nil {
@@ -116,12 +116,12 @@ func (s *BooleanSearcher) initSearchers(ctx *search.Context) error {
 	return nil
 }
 
-func (s *BooleanSearcher) advanceNextMust(ctx *search.Context, skipReturn *search.DocumentMatch) error {
+func (s *BooleanSearcher) advanceNextMust(ctx search.Context, skipReturn *search.DocumentMatch) error {
 	var err error
 
 	if s.mustSearcher != nil {
 		if s.currMust != skipReturn {
-			ctx.DocumentMatchPool.Put(s.currMust)
+			ctx.PutDocumentMatchInPool(s.currMust)
 		}
 		s.currMust, err = s.mustSearcher.Next(ctx)
 		if err != nil {
@@ -129,7 +129,7 @@ func (s *BooleanSearcher) advanceNextMust(ctx *search.Context, skipReturn *searc
 		}
 	} else {
 		if s.currShould != skipReturn {
-			ctx.DocumentMatchPool.Put(s.currShould)
+			ctx.PutDocumentMatchInPool(s.currShould)
 		}
 		s.currShould, err = s.shouldSearcher.Next(ctx)
 		if err != nil {
@@ -147,7 +147,7 @@ func (s *BooleanSearcher) advanceNextMust(ctx *search.Context, skipReturn *searc
 	return nil
 }
 
-func (s *BooleanSearcher) Next(ctx *search.Context) (*search.DocumentMatch, error) {
+func (s *BooleanSearcher) Next(ctx search.Context) (*search.DocumentMatch, error) {
 	if s.done {
 		return nil, nil
 	}
@@ -171,7 +171,7 @@ func (s *BooleanSearcher) Next(ctx *search.Context) (*search.DocumentMatch, erro
 	return rv, nil
 }
 
-func (s *BooleanSearcher) nextInternal(ctx *search.Context) (rv *search.DocumentMatch, err error) {
+func (s *BooleanSearcher) nextInternal(ctx search.Context) (rv *search.DocumentMatch, err error) {
 	for s.currentMatch != nil {
 		if s.currMustNot != nil {
 			var mustNotExcludesCandidate bool
@@ -190,7 +190,7 @@ func (s *BooleanSearcher) nextInternal(ctx *search.Context) (rv *search.Document
 		}
 
 		if shouldCmpOrNil < 0 {
-			ctx.DocumentMatchPool.Put(s.currShould)
+			ctx.PutDocumentMatchInPool(s.currShould)
 			// advance should searcher to our candidate entry
 			s.currShould, err = s.shouldSearcher.Advance(ctx, s.currentMatch.Number)
 			if err != nil {
@@ -243,10 +243,10 @@ func (s *BooleanSearcher) nextInternal(ctx *search.Context) (rv *search.Document
 	return rv, nil
 }
 
-func (s *BooleanSearcher) doesMustNotExcludeCandidate(ctx *search.Context) (excluded bool, err error) {
+func (s *BooleanSearcher) doesMustNotExcludeCandidate(ctx search.Context) (excluded bool, err error) {
 	cmp := docNumberCompare(s.currMustNot.Number, s.currentMatch.Number)
 	if cmp < 0 {
-		ctx.DocumentMatchPool.Put(s.currMustNot)
+		ctx.PutDocumentMatchInPool(s.currMustNot)
 		// advance must not searcher to our candidate entry
 		s.currMustNot, err = s.mustNotSearcher.Advance(ctx, s.currentMatch.Number)
 		if err != nil {
@@ -284,7 +284,7 @@ func (s *BooleanSearcher) buildConstituents() []*search.DocumentMatch {
 	return cons
 }
 
-func (s *BooleanSearcher) Advance(ctx *search.Context, number uint64) (*search.DocumentMatch, error) {
+func (s *BooleanSearcher) Advance(ctx search.Context, number uint64) (*search.DocumentMatch, error) {
 	if s.done {
 		return nil, nil
 	}
@@ -307,11 +307,11 @@ func (s *BooleanSearcher) Advance(ctx *search.Context, number uint64) (*search.D
 	return s.Next(ctx)
 }
 
-func (s *BooleanSearcher) advanceIfTrailing(ctx *search.Context, number uint64) error {
+func (s *BooleanSearcher) advanceIfTrailing(ctx search.Context, number uint64) error {
 	var err error
 	if s.mustSearcher != nil {
 		if s.currMust != nil {
-			ctx.DocumentMatchPool.Put(s.currMust)
+			ctx.PutDocumentMatchInPool(s.currMust)
 		}
 		s.currMust, err = s.mustSearcher.Advance(ctx, number)
 		if err != nil {
@@ -321,7 +321,7 @@ func (s *BooleanSearcher) advanceIfTrailing(ctx *search.Context, number uint64) 
 
 	if s.shouldSearcher != nil {
 		if s.currShould != nil {
-			ctx.DocumentMatchPool.Put(s.currShould)
+			ctx.PutDocumentMatchInPool(s.currShould)
 		}
 		s.currShould, err = s.shouldSearcher.Advance(ctx, number)
 		if err != nil {
@@ -335,7 +335,7 @@ func (s *BooleanSearcher) advanceIfTrailing(ctx *search.Context, number uint64) 
 		// position is already ahead of or at the requested ID.
 		if s.currMustNot == nil || s.currMustNot.Number < number {
 			if s.currMustNot != nil {
-				ctx.DocumentMatchPool.Put(s.currMustNot)
+				ctx.PutDocumentMatchInPool(s.currMustNot)
 			}
 			s.currMustNot, err = s.mustNotSearcher.Advance(ctx, number)
 			if err != nil {

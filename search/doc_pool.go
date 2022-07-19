@@ -14,32 +14,29 @@
 
 package search
 
-import "sync"
-
 // DocumentMatchPoolTooSmall is a callback function that can be executed
-// when the DocumentMatchPool does not have sufficient capacity
+// when the DocumentMatchSlicePool does not have sufficient capacity
 // By default we just perform just-in-time allocation, but you could log
 // a message, or panic, etc.
-type DocumentMatchPoolTooSmall func(p *DocumentMatchPool) *DocumentMatch
+type DocumentMatchPoolTooSmall func(p *DocumentMatchSlicePool) *DocumentMatch
 
-// DocumentMatchPool manages use/re-use of DocumentMatch instances
+// DocumentMatchSlicePool manages use/re-use of DocumentMatch instances
 // it pre-allocates space from a single large block with the expected
 // number of instances.  It is not thread-safe as currently all
 // aspects of search take place in a single goroutine.
-type DocumentMatchPool struct {
-	lock     sync.Mutex // prevent data race on avail
+type DocumentMatchSlicePool struct {
 	avail    DocumentMatchCollection
 	TooSmall DocumentMatchPoolTooSmall
 }
 
-func defaultDocumentMatchPoolTooSmall(p *DocumentMatchPool) *DocumentMatch {
+func defaultDocumentMatchPoolTooSmall(p *DocumentMatchSlicePool) *DocumentMatch {
 	return &DocumentMatch{}
 }
 
-// NewDocumentMatchPool will build a DocumentMatchPool with memory
+// NewDocumentMatchSlicePool will build a DocumentMatchSlicePool with memory
 // pre-allocated to accommodate the requested number of DocumentMatch
-// instances
-func NewDocumentMatchPool(size, sortSize int) *DocumentMatchPool {
+// instances. The returned DocumentMatchSlicePool is not thread-safe.
+func NewDocumentMatchSlicePool(size, sortSize int) *DocumentMatchSlicePool {
 	avail := make(DocumentMatchCollection, size)
 	// pre-allocate the expected number of instances
 	startBlock := make([]DocumentMatch, size)
@@ -52,7 +49,7 @@ func NewDocumentMatchPool(size, sortSize int) *DocumentMatchPool {
 		i++
 		j += sortSize
 	}
-	return &DocumentMatchPool{
+	return &DocumentMatchSlicePool{
 		avail:    avail,
 		TooSmall: defaultDocumentMatchPoolTooSmall,
 	}
@@ -62,9 +59,7 @@ func NewDocumentMatchPool(size, sortSize int) *DocumentMatchPool {
 // if the pool was not allocated with sufficient size, an allocation will
 // occur to satisfy this request.  As a side-effect this will grow the size
 // of the pool.
-func (p *DocumentMatchPool) Get() *DocumentMatch {
-	p.lock.Lock()
-
+func (p *DocumentMatchSlicePool) Get() *DocumentMatch {
 	var rv *DocumentMatch
 	if len(p.avail) > 0 {
 		rv, p.avail = p.avail[len(p.avail)-1], p.avail[:len(p.avail)-1]
@@ -72,19 +67,16 @@ func (p *DocumentMatchPool) Get() *DocumentMatch {
 		rv = p.TooSmall(p)
 	}
 
-	p.lock.Unlock()
 	return rv
 }
 
 // Put returns a DocumentMatch to the pool
-func (p *DocumentMatchPool) Put(d *DocumentMatch) {
+func (p *DocumentMatchSlicePool) Put(d *DocumentMatch) {
 	if d == nil {
 		return
 	}
 	// reset DocumentMatch before returning it to available pool
 	d.Reset()
 
-	p.lock.Lock()
 	p.avail = append(p.avail, d)
-	p.lock.Unlock()
 }

@@ -34,7 +34,7 @@ func (a *AllCollector) Collect(ctx context.Context, aggs search.Aggregations,
 		neededFields:  aggs.Fields(),
 		bucket:        search.NewBucket("", aggs),
 		searcher:      searcher,
-		searchContext: search.NewSearchContext(searcher.DocumentMatchPoolSize(), 0),
+		searchContext: search.NewSearchContext(searcher.DocumentMatchPoolSize(), 0, search.PoolTypeSlice),
 	}
 	if len(iter.neededFields) <= 1 {
 		return iter, nil
@@ -66,7 +66,7 @@ type AllIterator struct {
 	bucket        *search.Bucket
 	hitNumber     int
 	searcher      search.Collectible
-	searchContext *search.Context
+	searchContext search.Context
 	done          bool
 }
 

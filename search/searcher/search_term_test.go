@@ -90,9 +90,7 @@ func TestTermSearcher(t *testing.T) {
 		t.Errorf("expected count of 9, got %d", searcher.Count())
 	}
 
-	ctx := &search.Context{
-		DocumentMatchPool: search.NewDocumentMatchPool(1, 0),
-	}
+	ctx := search.NewSearchContext(1, 0, search.PoolTypeSlice)
 	docMatch, err := searcher.Next(ctx)
 	if err != nil {
 		t.Errorf("expected result, got %v", err)
@@ -101,7 +99,7 @@ func TestTermSearcher(t *testing.T) {
 	if docMatch.Number != numberA {
 		t.Errorf("expected result number to be %d, got %d", numberA, docMatch.Number)
 	}
-	ctx.DocumentMatchPool.Put(docMatch)
+	ctx.PutDocumentMatchInPool(docMatch)
 	docMatch, err = searcher.Advance(ctx, indexReader.docNumByID("c"))
 	if err != nil {
 		t.Errorf("expected result, got %v", err)
@@ -112,7 +110,7 @@ func TestTermSearcher(t *testing.T) {
 	}
 
 	// try advancing past end
-	ctx.DocumentMatchPool.Put(docMatch)
+	ctx.PutDocumentMatchInPool(docMatch)
 	docMatch, err = searcher.Advance(ctx, 999)
 	if err != nil {
 		t.Fatal(err)
@@ -122,7 +120,7 @@ func TestTermSearcher(t *testing.T) {
 	}
 
 	// try pushing next past end
-	ctx.DocumentMatchPool.Put(docMatch)
+	ctx.PutDocumentMatchInPool(docMatch)
 	docMatch, err = searcher.Next(ctx)
 	if err != nil {
 		t.Fatal(err)

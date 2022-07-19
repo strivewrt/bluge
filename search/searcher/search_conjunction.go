@@ -86,12 +86,12 @@ func (s *ConjunctionSearcher) Size() int {
 	return sizeInBytes
 }
 
-func (s *ConjunctionSearcher) initSearchers(ctx *search.Context) error {
+func (s *ConjunctionSearcher) initSearchers(ctx search.Context) error {
 	var err error
 	// get all searchers pointing at their first match
 	for i, searcher := range s.searchers {
 		if s.currs[i] != nil {
-			ctx.DocumentMatchPool.Put(s.currs[i])
+			ctx.PutDocumentMatchInPool(s.currs[i])
 		}
 		s.currs[i], err = searcher.Next(ctx)
 		if err != nil {
@@ -102,7 +102,7 @@ func (s *ConjunctionSearcher) initSearchers(ctx *search.Context) error {
 	return nil
 }
 
-func (s *ConjunctionSearcher) Next(ctx *search.Context) (*search.DocumentMatch, error) {
+func (s *ConjunctionSearcher) Next(ctx search.Context) (*search.DocumentMatch, error) {
 	if !s.initialized {
 		err := s.initSearchers(ctx)
 		if err != nil {
@@ -166,7 +166,7 @@ OUTER:
 		// so they all need to be bumped
 		for i, searcher := range s.searchers {
 			if s.currs[i] != rv {
-				ctx.DocumentMatchPool.Put(s.currs[i])
+				ctx.PutDocumentMatchInPool(s.currs[i])
 			}
 			s.currs[i], err = searcher.Next(ctx)
 			if err != nil {
@@ -181,7 +181,7 @@ OUTER:
 	return rv, nil
 }
 
-func (s *ConjunctionSearcher) Advance(ctx *search.Context, number uint64) (*search.DocumentMatch, error) {
+func (s *ConjunctionSearcher) Advance(ctx search.Context, number uint64) (*search.DocumentMatch, error) {
 	if !s.initialized {
 		err := s.initSearchers(ctx)
 		if err != nil {
@@ -200,9 +200,9 @@ func (s *ConjunctionSearcher) Advance(ctx *search.Context, number uint64) (*sear
 	return s.Next(ctx)
 }
 
-func (s *ConjunctionSearcher) advanceChild(ctx *search.Context, i int, number uint64) (err error) {
+func (s *ConjunctionSearcher) advanceChild(ctx search.Context, i int, number uint64) (err error) {
 	if s.currs[i] != nil {
-		ctx.DocumentMatchPool.Put(s.currs[i])
+		ctx.PutDocumentMatchInPool(s.currs[i])
 	}
 	s.currs[i], err = s.searchers[i].Advance(ctx, number)
 	return err

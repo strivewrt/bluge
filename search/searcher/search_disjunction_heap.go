@@ -82,7 +82,7 @@ func (s *DisjunctionHeapSearcher) Size() int {
 	return sizeInBytes
 }
 
-func (s *DisjunctionHeapSearcher) initSearchers(ctx *search.Context) error {
+func (s *DisjunctionHeapSearcher) initSearchers(ctx search.Context) error {
 	// alloc a single block of SearcherCurrs
 	block := make([]searcherCurr, len(s.searchers))
 
@@ -131,7 +131,7 @@ func (s *DisjunctionHeapSearcher) updateMatches() error {
 	return nil
 }
 
-func (s *DisjunctionHeapSearcher) Next(ctx *search.Context) (
+func (s *DisjunctionHeapSearcher) Next(ctx search.Context) (
 	*search.DocumentMatch, error) {
 	if !s.initialized {
 		err := s.initSearchers(ctx)
@@ -152,7 +152,7 @@ func (s *DisjunctionHeapSearcher) Next(ctx *search.Context) (
 		// invoke next on all the matching searchers
 		for _, matchingCurr := range s.matchingCurrs {
 			if matchingCurr.curr != rv {
-				ctx.DocumentMatchPool.Put(matchingCurr.curr)
+				ctx.PutDocumentMatchInPool(matchingCurr.curr)
 			}
 			curr, err := matchingCurr.searcher.Next(ctx)
 			if err != nil {
@@ -173,7 +173,7 @@ func (s *DisjunctionHeapSearcher) Next(ctx *search.Context) (
 	return rv, nil
 }
 
-func (s *DisjunctionHeapSearcher) Advance(ctx *search.Context,
+func (s *DisjunctionHeapSearcher) Advance(ctx search.Context,
 	number uint64) (*search.DocumentMatch, error) {
 	if !s.initialized {
 		err := s.initSearchers(ctx)
@@ -193,7 +193,7 @@ func (s *DisjunctionHeapSearcher) Advance(ctx *search.Context,
 	// advance them, using s.matchingCurrs as temp storage
 	for len(s.heap) > 0 && docNumberCompare(s.heap[0].curr.Number, number) < 0 {
 		searcherCurr := heap.Pop(s).(*searcherCurr)
-		ctx.DocumentMatchPool.Put(searcherCurr.curr)
+		ctx.PutDocumentMatchInPool(searcherCurr.curr)
 		curr, err := searcherCurr.searcher.Advance(ctx, number)
 		if err != nil {
 			return nil, err

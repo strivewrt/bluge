@@ -91,9 +91,8 @@ func testGeoBoundingBoxSearch(i search.Reader, minLon, minLat, maxLon, maxLat fl
 	if err != nil {
 		return nil, err
 	}
-	ctx := &search.Context{
-		DocumentMatchPool: search.NewDocumentMatchPool(gbs.DocumentMatchPoolSize(), 0),
-	}
+
+	ctx := search.NewSearchContext(gbs.DocumentMatchPoolSize(), 0, search.PoolTypeSlice)
 	docMatch, err := gbs.Next(ctx)
 	for docMatch != nil && err == nil {
 		rv = append(rv, docMatch.Number)

@@ -83,9 +83,8 @@ func testGeoPointDistanceSearch(i search.Reader, centerLon, centerLat, dist floa
 	if err != nil {
 		return nil, err
 	}
-	ctx := &search.Context{
-		DocumentMatchPool: search.NewDocumentMatchPool(gds.DocumentMatchPoolSize(), 0),
-	}
+
+	ctx := search.NewSearchContext(gds.DocumentMatchPoolSize(), 0, search.PoolTypeSlice)
 	docMatch, err := gds.Next(ctx)
 	for docMatch != nil && err == nil {
 		rv = append(rv, docMatch.Number)

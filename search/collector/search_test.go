@@ -23,9 +23,9 @@ type stubSearcher struct {
 	matches []*search.DocumentMatch
 }
 
-func (ss *stubSearcher) Next(ctx *search.Context) (*search.DocumentMatch, error) {
+func (ss *stubSearcher) Next(ctx search.Context) (*search.DocumentMatch, error) {
 	if ss.index < len(ss.matches) {
-		rv := ctx.DocumentMatchPool.Get()
+		rv := ctx.GetDocumentMatchFromPool()
 		rv.Number = ss.matches[ss.index].Number
 		rv.Score = ss.matches[ss.index].Score
 		ss.index++

@@ -32,7 +32,7 @@ func TestAggregations(t *testing.T) {
 	bucket := search.NewBucket("global", global)
 	testDocs := buildTestDocs()
 	for _, doc := range testDocs {
-		err := doc.LoadDocumentValues(search.NewSearchContext(0, 0), global.Fields())
+		err := doc.LoadDocumentValues(search.NewSearchContext(0, 0, search.PoolTypeSlice), global.Fields())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -54,7 +54,7 @@ func TestAggregationMerge(t *testing.T) {
 	// process the first 5 docs in shard1
 	shard1 := search.NewBucket("shard1", global)
 	for _, doc := range testDocs[0:5] {
-		err := doc.LoadDocumentValues(search.NewSearchContext(0, 0), global.Fields())
+		err := doc.LoadDocumentValues(search.NewSearchContext(0, 0, search.PoolTypeSlice), global.Fields())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -65,7 +65,7 @@ func TestAggregationMerge(t *testing.T) {
 	// process the next 5 docs in shard2
 	shard2 := search.NewBucket("shard2", global)
 	for _, doc := range testDocs[5:] {
-		err := doc.LoadDocumentValues(search.NewSearchContext(0, 0), global.Fields())
+		err := doc.LoadDocumentValues(search.NewSearchContext(0, 0, search.PoolTypeSlice), global.Fields())
 		if err != nil {
 			t.Fatal(err)
 		}

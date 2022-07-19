@@ -20,8 +20,8 @@ func TestDocumentMatchPool(t *testing.T) {
 	tooManyCalled := false
 
 	// create a pool
-	dmp := NewDocumentMatchPool(10, 0)
-	dmp.TooSmall = func(inner *DocumentMatchPool) *DocumentMatch {
+	dmp := NewDocumentMatchSlicePool(10, 0)
+	dmp.TooSmall = func(inner *DocumentMatchSlicePool) *DocumentMatch {
 		tooManyCalled = true
 		return &DocumentMatch{}
 	}

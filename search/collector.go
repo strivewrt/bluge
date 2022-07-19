@@ -26,7 +26,7 @@ type Collector interface {
 }
 
 type Collectible interface {
-	Next(ctx *Context) (*DocumentMatch, error)
+	Next(ctx Context) (*DocumentMatch, error)
 	DocumentMatchPoolSize() int
 	Close() error
 }

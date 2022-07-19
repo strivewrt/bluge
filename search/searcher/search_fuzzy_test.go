@@ -104,9 +104,7 @@ func TestFuzzySearch(t *testing.T) {
 			}
 		}()
 
-		ctx := &search.Context{
-			DocumentMatchPool: search.NewDocumentMatchPool(test.searcher.DocumentMatchPoolSize(), 0),
-		}
+		ctx := search.NewSearchContext(test.searcher.DocumentMatchPoolSize(), 0, search.PoolTypeSlice)
 		next, err := test.searcher.Next(ctx)
 		i := 0
 		for err == nil && next != nil {
@@ -119,7 +117,7 @@ func TestFuzzySearch(t *testing.T) {
 					t.Logf("scoring explanation: %s", next.Explanation)
 				}
 			}
-			ctx.DocumentMatchPool.Put(next)
+			ctx.PutDocumentMatchInPool(next)
 			next, err = test.searcher.Next(ctx)
 			i++
 		}

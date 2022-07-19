@@ -85,12 +85,12 @@ func (s *DisjunctionSliceSearcher) Size() int {
 	return sizeInBytes
 }
 
-func (s *DisjunctionSliceSearcher) initSearchers(ctx *search.Context) error {
+func (s *DisjunctionSliceSearcher) initSearchers(ctx search.Context) error {
 	var err error
 	// get all searchers pointing at their first match
 	for i, searcher := range s.searchers {
 		if s.currs[i] != nil {
-			ctx.DocumentMatchPool.Put(s.currs[i])
+			ctx.PutDocumentMatchInPool(s.currs[i])
 		}
 		s.currs[i], err = searcher.Next(ctx)
 		if err != nil {
@@ -139,7 +139,7 @@ func (s *DisjunctionSliceSearcher) updateMatches() error {
 	return nil
 }
 
-func (s *DisjunctionSliceSearcher) Next(ctx *search.Context) (
+func (s *DisjunctionSliceSearcher) Next(ctx search.Context) (
 	*search.DocumentMatch, error) {
 	if !s.initialized {
 		err := s.initSearchers(ctx)
@@ -162,7 +162,7 @@ func (s *DisjunctionSliceSearcher) Next(ctx *search.Context) (
 		for _, i := range s.matchingIdxs {
 			searcher := s.searchers[i]
 			if s.currs[i] != rv {
-				ctx.DocumentMatchPool.Put(s.currs[i])
+				ctx.PutDocumentMatchInPool(s.currs[i])
 			}
 			s.currs[i], err = searcher.Next(ctx)
 			if err != nil {
@@ -179,7 +179,7 @@ func (s *DisjunctionSliceSearcher) Next(ctx *search.Context) (
 	return rv, nil
 }
 
-func (s *DisjunctionSliceSearcher) Advance(ctx *search.Context,
+func (s *DisjunctionSliceSearcher) Advance(ctx search.Context,
 	number uint64) (*search.DocumentMatch, error) {
 	if !s.initialized {
 		err := s.initSearchers(ctx)
@@ -194,7 +194,7 @@ func (s *DisjunctionSliceSearcher) Advance(ctx *search.Context,
 			if s.currs[i].Number >= number {
 				continue
 			}
-			ctx.DocumentMatchPool.Put(s.currs[i])
+			ctx.PutDocumentMatchInPool(s.currs[i])
 		}
 		s.currs[i], err = searcher.Advance(ctx, number)
 		if err != nil {

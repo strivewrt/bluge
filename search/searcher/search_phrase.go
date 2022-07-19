@@ -128,7 +128,7 @@ func NewSloppyMultiPhraseSearcher(indexReader search.Reader, terms [][]string, f
 	return &rv, nil
 }
 
-func (s *PhraseSearcher) initSearchers(ctx *search.Context) error {
+func (s *PhraseSearcher) initSearchers(ctx search.Context) error {
 	err := s.advanceNextMust(ctx)
 	if err != nil {
 		return err
@@ -138,12 +138,12 @@ func (s *PhraseSearcher) initSearchers(ctx *search.Context) error {
 	return nil
 }
 
-func (s *PhraseSearcher) advanceNextMust(ctx *search.Context) error {
+func (s *PhraseSearcher) advanceNextMust(ctx search.Context) error {
 	var err error
 
 	if s.mustSearcher != nil {
 		if s.currMust != nil {
-			ctx.DocumentMatchPool.Put(s.currMust)
+			ctx.PutDocumentMatchInPool(s.currMust)
 		}
 		s.currMust, err = s.mustSearcher.Next(ctx)
 		if err != nil {
@@ -154,7 +154,7 @@ func (s *PhraseSearcher) advanceNextMust(ctx *search.Context) error {
 	return nil
 }
 
-func (s *PhraseSearcher) Next(ctx *search.Context) (*search.DocumentMatch, error) {
+func (s *PhraseSearcher) Next(ctx search.Context) (*search.DocumentMatch, error) {
 	if !s.initialized {
 		err := s.initSearchers(ctx)
 		if err != nil {
@@ -350,7 +350,7 @@ func editDistance(p1, p2 int) int {
 	return dist
 }
 
-func (s *PhraseSearcher) Advance(ctx *search.Context, number uint64) (*search.DocumentMatch, error) {
+func (s *PhraseSearcher) Advance(ctx search.Context, number uint64) (*search.DocumentMatch, error) {
 	if !s.initialized {
 		err := s.initSearchers(ctx)
 		if err != nil {
@@ -361,7 +361,7 @@ func (s *PhraseSearcher) Advance(ctx *search.Context, number uint64) (*search.Do
 		if s.currMust.Number >= number {
 			return s.Next(ctx)
 		}
-		ctx.DocumentMatchPool.Put(s.currMust)
+		ctx.PutDocumentMatchInPool(s.currMust)
 	}
 	if s.currMust == nil {
 		return nil, nil

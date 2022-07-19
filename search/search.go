@@ -17,7 +17,6 @@ package search
 import (
 	"fmt"
 	"sort"
-	"sync"
 
 	segment "github.com/blugelabs/bluge_segment_api"
 
@@ -105,6 +104,7 @@ type DocumentMatch struct {
 
 	PipelineFinished chan struct{}
 	Err              error
+	NewAlloc         bool
 }
 
 func (dm *DocumentMatch) SetReader(r MatchReader) {
@@ -118,7 +118,7 @@ func (dm *DocumentMatch) addDocValue(name string, value []byte) {
 	dm.docValues[name] = append(dm.docValues[name], value)
 }
 
-func (dm *DocumentMatch) LoadDocumentValues(ctx *Context, fields []string) error {
+func (dm *DocumentMatch) LoadDocumentValues(ctx Context, fields []string) error {
 	dvReader, err := ctx.DocValueReaderForReader(dm.reader, fields)
 	if err != nil {
 		return err
@@ -255,8 +255,8 @@ func (c DocumentMatchCollection) Swap(i, j int)      { c[i], c[j] = c[j], c[i] }
 func (c DocumentMatchCollection) Less(i, j int) bool { return c[i].Score > c[j].Score }
 
 type Searcher interface {
-	Next(ctx *Context) (*DocumentMatch, error)
-	Advance(ctx *Context, number uint64) (*DocumentMatch, error)
+	Next(ctx Context) (*DocumentMatch, error)
+	Advance(ctx Context, number uint64) (*DocumentMatch, error)
 	Close() error
 	Count() uint64
 	Min() int
@@ -274,57 +274,11 @@ type SearcherOptions struct {
 	Score              string
 }
 
-// Context represents the context around a single search
-type Context struct {
-	lock              sync.RWMutex // prevent data race on dvReaders
-	DocumentMatchPool *DocumentMatchPool
-	dvReaders         map[DocumentValueReadable]segment.DocumentValueReader
-}
-
-func NewSearchContext(size, sortSize int) *Context {
-	return &Context{
-		DocumentMatchPool: NewDocumentMatchPool(size, sortSize),
-		dvReaders:         make(map[DocumentValueReadable]segment.DocumentValueReader),
-	}
-}
-
-func (sc *Context) DocValueReaderForReader(r DocumentValueReadable, fields []string) (segment.DocumentValueReader, error) {
-	sc.lock.RLock()
-	dvReader := sc.dvReaders[r]
-	sc.lock.RUnlock()
-
-	if dvReader == nil {
-		var err error
-		dvReader, err = r.DocumentValueReader(fields)
-		if err != nil {
-			return nil, err
-		}
-
-		sc.lock.Lock()
-		sc.dvReaders[r] = dvReader
-		sc.lock.Unlock()
-	}
-	return dvReader, nil
-}
-
-// Size returns the search Context's size in memory.
-// IT SHOULD NOT BE CALLED INCESSANTLY FOR PERFORMANCE REASONS.
-// It can increase lock contention for the Context.DocumentMatchPool field
-func (sc *Context) Size() int {
-	sizeInBytes := reflectStaticSizeSearchContext + sizeOfPtr +
-		reflectStaticSizeDocumentMatchPool + sizeOfPtr
-
-	if sc.DocumentMatchPool != nil {
-		sc.DocumentMatchPool.lock.Lock()
-		for _, entry := range sc.DocumentMatchPool.avail {
-			if entry != nil {
-				sizeInBytes += entry.Size()
-			}
-		}
-		sc.DocumentMatchPool.lock.Unlock()
-	}
-
-	return sizeInBytes
+type Context interface {
+	Size() int64
+	PutDocumentMatchInPool(d *DocumentMatch)
+	GetDocumentMatchFromPool() *DocumentMatch
+	DocValueReaderForReader(r DocumentValueReadable, fields []string) (segment.DocumentValueReader, error)
 }
 
 type DocumentValueReadable interface {

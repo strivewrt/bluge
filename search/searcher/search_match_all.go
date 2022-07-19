@@ -50,7 +50,7 @@ func (s *MatchAllSearcher) Count() uint64 {
 	return s.reader.Count()
 }
 
-func (s *MatchAllSearcher) Next(ctx *search.Context) (*search.DocumentMatch, error) {
+func (s *MatchAllSearcher) Next(ctx search.Context) (*search.DocumentMatch, error) {
 	tfd, err := s.reader.Next()
 	if err != nil {
 		return nil, err
@@ -67,7 +67,7 @@ func (s *MatchAllSearcher) Next(ctx *search.Context) (*search.DocumentMatch, err
 	return docMatch, nil
 }
 
-func (s *MatchAllSearcher) Advance(ctx *search.Context, number uint64) (*search.DocumentMatch, error) {
+func (s *MatchAllSearcher) Advance(ctx search.Context, number uint64) (*search.DocumentMatch, error) {
 	tfd, err := s.reader.Advance(number)
 	if err != nil {
 		return nil, err
@@ -96,8 +96,8 @@ func (s *MatchAllSearcher) DocumentMatchPoolSize() int {
 	return 1
 }
 
-func (s *MatchAllSearcher) buildDocumentMatch(ctx *search.Context, termMatch segment.Posting) *search.DocumentMatch {
-	rv := ctx.DocumentMatchPool.Get()
+func (s *MatchAllSearcher) buildDocumentMatch(ctx search.Context, termMatch segment.Posting) *search.DocumentMatch {
+	rv := ctx.GetDocumentMatchFromPool()
 	rv.SetReader(s.indexReader)
 	rv.Number = termMatch.Number()
 

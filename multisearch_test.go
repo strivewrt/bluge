@@ -67,7 +67,10 @@ func TestMultiSearch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error getting index reader: %v", err)
 	}
-	prepareDocs(indexWriter1, 1000)
+	err = prepareDocs(indexWriter1, 1000)
+	if err != nil {
+		t.Fatalf("error preparing docs: %v", err)
+	}
 
 	q := NewPrefixQuery("index-").SetField("name")
 	req := NewTopNSearch(10, q).WithStandardAggregations()

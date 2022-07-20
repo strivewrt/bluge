@@ -34,7 +34,9 @@ func init() {
 
 	var sc = search.NewSearchContext(0, 0, search.PoolTypeSlice)
 	var spc = search.NewSearchContext(0, 0, search.PoolTypeSyncPool)
-	searchContextEmptySize = int(sc.Size()) // down-casting might give inaccurate results, depending on system arch, but we usually use 64bit so this should be fine
+
+	// down-casting might give inaccurate results, depending on system arch, but we usually use 64bit so this should be fine
+	searchContextEmptySize = int(sc.Size())
 	if spc.Size() > sc.Size() {
 		searchContextEmptySize = int(spc.Size())
 	}

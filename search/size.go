@@ -32,7 +32,7 @@ func init() {
 	var sc sliceContext
 	reflectStaticSizeSliceSearchContext = int(reflect.TypeOf(sc).Size())
 	var spc syncPoolContext
-	reflectStaticSizeSyncPoolSearchContext = int(reflect.TypeOf(spc).Size())
+	reflectStaticSizeSyncPoolSearchContext = int(reflect.TypeOf(spc).Size()) //nolint:govet
 	var l Location
 	reflectStaticSizeLocation = int(reflect.TypeOf(l).Size())
 	var dmsp DocumentMatchSlicePool

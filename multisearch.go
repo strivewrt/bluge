@@ -49,7 +49,7 @@ func NewMultiSearcherList(searchers []search.Searcher) *MultiSearcherList {
 func (m *MultiSearcherList) collectAllDocuments(ctx search.Context) {
 	errs := &multierror.Group{}
 
-	var numFailed int64 = 0
+	var numFailed int64
 	for _, searcher := range m.searchers {
 		s := searcher
 		errs.Go(func() error {

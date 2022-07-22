@@ -67,7 +67,7 @@ func TestMultiSearch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error getting index reader: %v", err)
 	}
-	err = prepareDocs(indexWriter1, 1000)
+	err = prepareDocs(indexWriter1, 500)
 	if err != nil {
 		t.Fatalf("error preparing docs: %v", err)
 	}

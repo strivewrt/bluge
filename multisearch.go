@@ -19,16 +19,14 @@ import (
 	"fmt"
 	"log"
 	"sync"
-	"sync/atomic"
 	"time"
 
-	"github.com/hashicorp/go-multierror"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/blugelabs/bluge/search"
 )
 
 type MultiSearcherList struct {
-	index              int
 	searchers          []search.Searcher
 	docs               []*search.DocumentMatch
 	docChan            chan *search.DocumentMatch
@@ -47,9 +45,8 @@ func NewMultiSearcherList(searchers []search.Searcher) *MultiSearcherList {
 
 // if one searcher fails, should stop all the rest and exit?
 func (m *MultiSearcherList) collectAllDocuments(ctx search.Context) {
-	errs := &multierror.Group{}
-
-	var numFailed int64
+	errs := errgroup.Group{}
+	errs.SetLimit(500)
 	for _, searcher := range m.searchers {
 		s := searcher
 		errs.Go(func() error {
@@ -61,7 +58,6 @@ func (m *MultiSearcherList) collectAllDocuments(ctx search.Context) {
 			}
 
 			if err != nil {
-				atomic.AddInt64(&numFailed, 1)
 				return err
 			}
 
@@ -69,42 +65,20 @@ func (m *MultiSearcherList) collectAllDocuments(ctx search.Context) {
 		})
 	}
 
-	multiErr := errs.Wait().ErrorOrNil()
+	err := errs.Wait()
+	if err != nil {
+		log.Printf("multisearcher failed: %s", err.Error())
+	}
+
 	close(m.docChan)
-
-	if multiErr != nil {
-		log.Printf("%d searchers failed errored, errors: %v", numFailed, multiErr.Error())
-	}
-}
-
-// A dilemma here, should MultiSearcherList.Next listen on finishedCollecting and then begin dispersing documents?
-// or just return documents directly from docChan?
-func (m *MultiSearcherList) storeDocs() {
-	for {
-		match, ok := <-m.docChan
-		if !ok {
-			close(m.finishedCollecting)
-			return
-		}
-
-		m.docs = append(m.docs, match)
-	}
 }
 
 func (m *MultiSearcherList) Next(ctx search.Context) (*search.DocumentMatch, error) {
 	m.once.Do(func() {
 		go m.collectAllDocuments(ctx)
-		go m.storeDocs() // see comment on storeDocs
-		<-m.finishedCollecting
 	})
 
-	if m.index < len(m.docs) {
-		dm := m.docs[m.index]
-		m.index++
-		return dm, nil
-	}
-
-	return nil, nil
+	return <-m.docChan, nil
 }
 
 func (m *MultiSearcherList) DocumentMatchPoolSize() int {
@@ -130,10 +104,7 @@ func (m *MultiSearcherList) Close() (err error) {
 }
 
 func MultiSearch(ctx context.Context, req SearchRequest, readers ...*Reader) (search.DocumentMatchIterator, error) {
-	collector := req.Collector()
-
-	var searchers []search.Searcher
-	start := time.Now()
+	searchers := make([]search.Searcher, 0, len(readers))
 	for _, reader := range readers {
 		searcher, err := req.Searcher(reader.reader, reader.config)
 		if err != nil {
@@ -141,13 +112,16 @@ func MultiSearch(ctx context.Context, req SearchRequest, readers ...*Reader) (se
 		}
 		searchers = append(searchers, searcher)
 	}
-	fmt.Println("time spent arranging readers: ", time.Since(start).Milliseconds())
 
+	collector := req.Collector()
 	msl := NewMultiSearcherList(searchers)
-	dmItr, err := collector.Collect(ctx, req.Aggregations(), msl)
+
+	start := time.Now()
+	dmItr, err := collector.Collect(ctx, req.Aggregations(), msl, search.PoolTypeSyncPool)
 	if err != nil {
 		return nil, err
 	}
+	fmt.Printf("multisearch query time: %dms", time.Since(start).Microseconds())
 
 	return dmItr, nil
 }

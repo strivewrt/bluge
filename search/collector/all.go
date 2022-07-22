@@ -28,13 +28,13 @@ func NewAllCollector() *AllCollector {
 }
 
 func (a *AllCollector) Collect(ctx context.Context, aggs search.Aggregations,
-	searcher search.Collectible) (search.DocumentMatchIterator, error) {
+	searcher search.Collectible, poolType search.PoolType) (search.DocumentMatchIterator, error) {
 	iter := &AllIterator{
 		ctx:           ctx,
 		neededFields:  aggs.Fields(),
 		bucket:        search.NewBucket("", aggs),
 		searcher:      searcher,
-		searchContext: search.NewSearchContext(searcher.DocumentMatchPoolSize(), 0, search.PoolTypeSlice),
+		searchContext: search.NewSearchContext(searcher.DocumentMatchPoolSize(), 0, poolType),
 	}
 	if len(iter.neededFields) <= 1 {
 		return iter, nil

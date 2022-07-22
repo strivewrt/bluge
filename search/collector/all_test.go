@@ -32,7 +32,7 @@ func TestAllCollector(t *testing.T) {
 	aggs.Add("count", aggregations.CountMatches())
 
 	collector := NewAllCollector()
-	dmi, err := collector.Collect(context.Background(), aggs, searcher)
+	dmi, err := collector.Collect(context.Background(), aggs, searcher, search.PoolTypeSlice)
 	if err != nil {
 		t.Fatal(err)
 	}

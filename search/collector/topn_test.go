@@ -51,7 +51,7 @@ func TestTop10Scores(t *testing.T) {
 	aggs.Add("max_score", aggregations.Max(search.DocumentScore()))
 
 	collector := NewTopNCollector(10, 0, search.SortOrder{search.SortBy(search.DocumentScore()).Desc()})
-	dmi, err := collector.Collect(context.Background(), aggs, searcher)
+	dmi, err := collector.Collect(context.Background(), aggs, searcher, search.PoolTypeSlice)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -130,7 +130,7 @@ func TestTop10ScoresSkip10(t *testing.T) {
 	aggs.Add("max_score", aggregations.Max(search.DocumentScore()))
 
 	collector := NewTopNCollector(10, 10, search.SortOrder{search.SortBy(search.DocumentScore()).Desc()})
-	dmi, err := collector.Collect(context.Background(), aggs, searcher)
+	dmi, err := collector.Collect(context.Background(), aggs, searcher, search.PoolTypeSlice)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -180,7 +180,7 @@ func TestTop10ScoresSkip10Only9Hits(t *testing.T) {
 	aggs.Add("max_score", aggregations.Max(search.DocumentScore()))
 
 	collector := NewTopNCollector(10, 10, search.SortOrder{search.SortBy(search.DocumentScore()).Desc()})
-	dmi, err := collector.Collect(context.Background(), aggs, searcher)
+	dmi, err := collector.Collect(context.Background(), aggs, searcher, search.PoolTypeSlice)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -220,7 +220,7 @@ func TestPaginationSameScores(t *testing.T) {
 
 	// first get first 5 hits
 	collector := NewTopNCollector(5, 0, search.SortOrder{search.SortBy(search.DocumentScore()).Desc()})
-	dmi, err := collector.Collect(context.Background(), aggs, searcher)
+	dmi, err := collector.Collect(context.Background(), aggs, searcher, search.PoolTypeSlice)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -258,7 +258,7 @@ func TestPaginationSameScores(t *testing.T) {
 
 	// now get next 5 hits
 	collector = NewTopNCollector(5, 5, search.SortOrder{search.SortBy(search.DocumentScore()).Desc()})
-	dmi, err = collector.Collect(context.Background(), aggs, searcher)
+	dmi, err = collector.Collect(context.Background(), aggs, searcher, search.PoolTypeSlice)
 	if err != nil {
 		t.Fatal(err)
 	}

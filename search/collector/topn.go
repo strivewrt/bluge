@@ -126,7 +126,7 @@ func (hc *TopNCollector) BackingSize() int {
 
 // Collect goes to the index to find the matching documents
 func (hc *TopNCollector) Collect(ctx context.Context, aggs search.Aggregations,
-	searcher search.Collectible) (search.DocumentMatchIterator, error) {
+	searcher search.Collectible, poolType search.PoolType) (search.DocumentMatchIterator, error) {
 	var err error
 	var next *search.DocumentMatch
 
@@ -135,7 +135,7 @@ func (hc *TopNCollector) Collect(ctx context.Context, aggs search.Aggregations,
 		_ = searcher.Close()
 	}()
 
-	searchContext := search.NewSearchContext(hc.backingSize+searcher.DocumentMatchPoolSize(), len(hc.sort), search.PoolTypeSyncPool)
+	searchContext := search.NewSearchContext(hc.backingSize+searcher.DocumentMatchPoolSize(), len(hc.sort), poolType)
 
 	// add fields needed by aggregations
 	hc.neededFields = append(hc.neededFields, aggs.Fields()...)

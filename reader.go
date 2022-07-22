@@ -76,7 +76,7 @@ func (r *Reader) Search(ctx context.Context, req SearchRequest) (search.Document
 	}
 
 	var dmItr search.DocumentMatchIterator
-	dmItr, err = collector.Collect(ctx, req.Aggregations(), searcher)
+	dmItr, err = collector.Collect(ctx, req.Aggregations(), searcher, search.PoolTypeSlice)
 	if err != nil {
 		return nil, err
 	}

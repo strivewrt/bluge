@@ -802,7 +802,6 @@ type documentValueReader struct {
 	sdvr   segment.DocumentValueReader
 
 	currSegmentIndex int
-	lock             sync.Mutex
 }
 
 func (dvr *documentValueReader) VisitDocumentValues(number uint64,
@@ -812,8 +811,6 @@ func (dvr *documentValueReader) VisitDocumentValues(number uint64,
 		return nil
 	}
 
-	dvr.lock.Lock()
-	defer dvr.lock.Unlock()
 	if dvr.currSegmentIndex != segmentIndex {
 		dvr.currSegmentIndex = segmentIndex
 		sdvr, err := dvr.i.segment[dvr.currSegmentIndex].segment.DocumentValueReader(dvr.fields)
@@ -835,6 +832,5 @@ func (dvr *documentValueReader) VisitDocumentValues(number uint64,
 		}
 	}
 
-	err = dvr.sdvr.VisitDocumentValues(localDocNum, visitor)
-	return err
+	return dvr.sdvr.VisitDocumentValues(localDocNum, visitor)
 }

@@ -19,7 +19,7 @@ import (
 )
 
 type Collector interface {
-	Collect(context.Context, Aggregations, Collectible) (DocumentMatchIterator, error)
+	Collect(context.Context, Aggregations, Collectible, PoolType) (DocumentMatchIterator, error)
 
 	Size() int
 	BackingSize() int

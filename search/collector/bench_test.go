@@ -47,7 +47,7 @@ func benchHelper(numOfMatches int, cc createCollector, b *testing.B) {
 		aggs := make(search.Aggregations)
 		aggs.Add("count", aggregations.CountMatches())
 		aggs.Add("max_score", aggregations.Max(search.DocumentScore()))
-		dmi, err := collector.Collect(context.Background(), aggs, searcher)
+		dmi, err := collector.Collect(context.Background(), aggs, searcher, search.PoolTypeSlice)
 		if err != nil {
 			b.Fatal(err)
 		}

@@ -16,7 +16,6 @@ package search
 
 import (
 	"sync"
-	"sync/atomic"
 )
 
 // DocumentMatchSyncPool manages use/re-use of DocumentMatch instances
@@ -36,24 +35,22 @@ func NewDocumentMatchSyncPool(size, sortSize int) *DocumentMatchSyncPool {
 	pool := &sync.Pool{
 		New: func() interface{} {
 			return &DocumentMatch{
-				NewAlloc:  true,
 				SortValue: make([][]byte, 0, sortSize),
 			}
 		},
 	}
 
-	// pre-allocate the expected number of instances
-	startBlock := make([]DocumentMatch, size)
-
 	var poolSize int64
+	d := &DocumentMatch{SortValue: make([][]byte, 0, sortSize)}
+	poolSize = int64(d.Size() * size) // calculate pool size once
+	pool.Put(d)
+
+	// pre-allocate the expected number of instances
 	// make these initial instances available in the pool
-	i := 0
-	for i < size {
-		d := &startBlock[i]
-		d.SortValue = make([][]byte, 0, sortSize)
-		poolSize += int64(d.Size())
-		pool.Put(d)
-		i++
+	for i := 1; i < size; i++ { // start from i := 1, since we have added one above
+		pool.Put(&DocumentMatch{
+			SortValue: make([][]byte, 0, sortSize),
+		})
 	}
 
 	return &DocumentMatchSyncPool{pool: pool, size: poolSize}
@@ -64,18 +61,12 @@ func NewDocumentMatchSyncPool(size, sortSize int) *DocumentMatchSyncPool {
 // occur to satisfy this request.  As a side-effect this will grow the size
 // of the pool.
 func (p *DocumentMatchSyncPool) Get() *DocumentMatch {
-	d := p.pool.Get().(*DocumentMatch)
-	if !d.NewAlloc { // if it's not newly allocated, then this decreases the size of the pool
-		atomic.AddInt64(&p.size, int64(-d.Size()))
-	} else { // it's a new allocation, set it back to false.
-		d.NewAlloc = false
-	}
-	return d
+	return p.pool.Get().(*DocumentMatch)
 }
 
 // Size returns the size of the DocumentMatchSyncPool
 func (p *DocumentMatchSyncPool) Size() int64 {
-	return atomic.LoadInt64(&p.size)
+	return p.size
 }
 
 // Put returns a DocumentMatch to the pool
@@ -86,5 +77,4 @@ func (p *DocumentMatchSyncPool) Put(d *DocumentMatch) {
 
 	d.Reset() // reset DocumentMatch before returning it to available pool
 	p.pool.Put(d)
-	atomic.AddInt64(&p.size, int64(d.Size()))
 }

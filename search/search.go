@@ -101,10 +101,6 @@ type DocumentMatch struct {
 	// be later incorporated into the Locations map when search
 	// results are completed
 	FieldTermLocations []FieldTermLocation
-
-	PipelineFinished chan struct{}
-	Err              error
-	NewAlloc         bool
 }
 
 func (dm *DocumentMatch) SetReader(r MatchReader) {

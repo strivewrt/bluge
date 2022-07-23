@@ -804,6 +804,7 @@ type documentValueReader struct {
 	currSegmentIndex int
 }
 
+// TODO: possible concurrent load doc values in top n collector and lock here the documentValueReader here
 func (dvr *documentValueReader) VisitDocumentValues(number uint64,
 	visitor segment.DocumentValueVisitor) (err error) {
 	segmentIndex, localDocNum := dvr.i.segmentIndexAndLocalDocNumFromGlobal(number)

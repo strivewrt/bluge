@@ -1,15 +1,12 @@
 package search
 
 import (
-	"sync"
-
 	segment "github.com/blugelabs/bluge_segment_api"
 )
 
 // syncPoolContext represents the context around a single search
 // It is safe for concurrent use.
 type syncPoolContext struct {
-	lock              sync.RWMutex // prevent data race on dvReaders
 	DocumentMatchPool *DocumentMatchSyncPool
 	dvReaders         map[DocumentValueReadable]segment.DocumentValueReader
 }
@@ -22,9 +19,7 @@ func newSearchSyncPoolContext(size, sortSize int) Context {
 }
 
 func (sc *syncPoolContext) DocValueReaderForReader(r DocumentValueReadable, fields []string) (segment.DocumentValueReader, error) {
-	sc.lock.RLock()
 	dvReader := sc.dvReaders[r]
-	sc.lock.RUnlock()
 
 	if dvReader == nil {
 		var err error
@@ -33,9 +28,7 @@ func (sc *syncPoolContext) DocValueReaderForReader(r DocumentValueReadable, fiel
 			return nil, err
 		}
 
-		sc.lock.Lock()
 		sc.dvReaders[r] = dvReader
-		sc.lock.Unlock()
 	}
 	return dvReader, nil
 }

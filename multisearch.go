@@ -26,41 +26,33 @@ import (
 )
 
 type MultiSearcherList struct {
-	searchers          []search.Searcher
-	docs               []*search.DocumentMatch
-	docChan            chan *search.DocumentMatch
-	finishedCollecting chan struct{}
-	once               sync.Once
+	searchers []search.Searcher
+	docChan   chan *search.DocumentMatch
+	once      sync.Once
 }
 
 func NewMultiSearcherList(searchers []search.Searcher) *MultiSearcherList {
 	return &MultiSearcherList{
-		searchers:          searchers,
-		docs:               make([]*search.DocumentMatch, 0, len(searchers)*10),
-		docChan:            make(chan *search.DocumentMatch, len(searchers)*10),
-		finishedCollecting: make(chan struct{}),
+		searchers: searchers,
+		docChan:   make(chan *search.DocumentMatch, len(searchers)*2),
 	}
 }
 
 // if one searcher fails, should stop all the rest and exit?
 func (m *MultiSearcherList) collectAllDocuments(ctx search.Context) {
 	errs := errgroup.Group{}
-	errs.SetLimit(500)
-	for _, searcher := range m.searchers {
-		s := searcher
+	errs.SetLimit(1000)
+	for i := range m.searchers {
+		j := i
 		errs.Go(func() error {
-			dm, err := s.Next(ctx)
+			dm, err := m.searchers[j].Next(ctx)
 
 			for err == nil && dm != nil {
 				m.docChan <- dm
-				dm, err = s.Next(ctx)
+				dm, err = m.searchers[j].Next(ctx)
 			}
 
-			if err != nil {
-				return err
-			}
-
-			return nil
+			return err
 		})
 	}
 

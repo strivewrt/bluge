@@ -14,7 +14,7 @@ type syncPoolContext struct {
 func newSearchSyncPoolContext(size, sortSize int) Context {
 	return &syncPoolContext{
 		DocumentMatchPool: NewDocumentMatchSyncPool(size, sortSize),
-		dvReaders:         make(map[DocumentValueReadable]segment.DocumentValueReader, size/2),
+		dvReaders:         make(map[DocumentValueReadable]segment.DocumentValueReader),
 	}
 }
 

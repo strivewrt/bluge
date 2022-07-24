@@ -40,3 +40,7 @@ func (i *TopNIterator) Next() (*search.DocumentMatch, error) {
 func (i *TopNIterator) Aggregations() *search.Bucket {
 	return i.bucket
 }
+
+func (i *TopNIterator) Size() int {
+	return len(i.results)
+}

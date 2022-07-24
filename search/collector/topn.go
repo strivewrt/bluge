@@ -18,6 +18,7 @@ import (
 	"context"
 
 	"github.com/blugelabs/bluge/search"
+	"golang.org/x/sync/errgroup"
 )
 
 type collectorStore interface {
@@ -127,8 +128,6 @@ func (hc *TopNCollector) BackingSize() int {
 // Collect goes to the index to find the matching documents
 func (hc *TopNCollector) Collect(ctx context.Context, aggs search.Aggregations,
 	searcher search.Collectible, poolType search.PoolType) (search.DocumentMatchIterator, error) {
-	var err error
-	var next *search.DocumentMatch
 
 	// ensure that we always close the searcher
 	defer func() {
@@ -152,32 +151,13 @@ func (hc *TopNCollector) Collect(ctx context.Context, aggs search.Aggregations,
 	}
 
 	bucket := search.NewBucket("", aggs)
+	var err error
 
-	var hitNumber int64
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
+	switch poolType {
+	case search.PoolTypeSyncPool:
+		err = hc.collectAllConcurrent(ctx, searchContext, searcher, bucket)
 	default:
-		next, err = searcher.Next(searchContext)
-	}
-	for err == nil && next != nil {
-		if hitNumber%CheckDoneEvery == 0 {
-			select {
-			case <-ctx.Done():
-				return nil, ctx.Err()
-			default:
-			}
-		}
-
-		hitNumber++
-		next.HitNumber = hitNumber
-
-		err = hc.collectSingle(searchContext, next, bucket)
-		if err != nil {
-			return nil, err
-		}
-
-		next, err = searcher.Next(searchContext)
+		err = hc.collectAllSequential(ctx, searchContext, searcher, bucket)
 	}
 	if err != nil {
 		return nil, err
@@ -200,7 +180,42 @@ func (hc *TopNCollector) Collect(ctx context.Context, aggs search.Aggregations,
 	return rv, nil
 }
 
-func (hc *TopNCollector) collectSingle(ctx search.Context, d *search.DocumentMatch, bucket *search.Bucket) error {
+// collectAllSequential collects all documents sequentially
+func (hc *TopNCollector) collectAllSequential(ctx context.Context, sctx search.Context, searcher search.Collectible, bucket *search.Bucket) error {
+	var hitNumber int64
+	var err error
+	var next *search.DocumentMatch
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+		next, err = searcher.Next(sctx)
+	}
+	for err == nil && next != nil {
+		if hitNumber%CheckDoneEvery == 0 {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+			}
+		}
+
+		hitNumber++
+		next.HitNumber = hitNumber
+
+		err = hc.collectSequential(sctx, next, bucket)
+		if err != nil {
+			return err
+		}
+
+		next, err = searcher.Next(sctx)
+	}
+
+	return err
+}
+
+func (hc *TopNCollector) collectSequential(ctx search.Context, d *search.DocumentMatch, bucket *search.Bucket) error {
 	var err error
 
 	if len(hc.neededFields) > 0 {
@@ -254,6 +269,102 @@ func (hc *TopNCollector) collectSingle(ctx search.Context, d *search.DocumentMat
 		}
 	}
 	return nil
+}
+
+// collectAllConcurrent collects all documents concurrently
+func (hc *TopNCollector) collectAllConcurrent(ctx context.Context, sctx search.Context, searcher search.Collectible, bucket *search.Bucket) error {
+	var hitNumber int64
+	var err error
+	var next *search.DocumentMatch
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+		next, err = searcher.Next(sctx)
+	}
+
+	errg := &errgroup.Group{}
+	pause := make(chan struct{}, 1)
+	for err == nil && next != nil {
+		if hitNumber%CheckDoneEvery == 0 {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+			}
+		}
+
+		hitNumber++
+		next.HitNumber = hitNumber
+
+		// load doc values sequentially
+		if len(hc.neededFields) > 0 {
+			err = next.LoadDocumentValues(sctx, hc.neededFields)
+			if err != nil {
+				break
+			}
+		}
+
+		errg.Go(hc.collectConcurrent(sctx, next, bucket, pause))
+		next, err = searcher.Next(sctx)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	return errg.Wait()
+}
+
+func (hc *TopNCollector) collectConcurrent(ctx search.Context, d *search.DocumentMatch, bucket *search.Bucket, pause chan struct{}) func() error {
+	return func() error {
+		// compute this hits sort value
+		hc.sort.Compute(d)
+
+		// support search after based pagination,
+		// if this hit is <= the search after sort key
+		// we should skip it
+		if hc.searchAfter != nil {
+			// exact sort order matches use hit number to break tie
+			// but we want to allow for exact match, so we pretend
+			if hc.sort.CompareSearchAfter(d, hc.searchAfter) <= 0 {
+				return nil
+			}
+		}
+
+		// calculate aggregations
+		bucket.Consume(d)
+
+		pause <- struct{}{}
+		// optimization, we track lowest sorting hit already removed from heap
+		// with this one comparison, we can avoid all heap operations if
+		// this hit would have been added and then immediately removed
+		if hc.lowestMatchOutsideResults != nil {
+			cmp := hc.sort.Compare(d, hc.lowestMatchOutsideResults)
+			if cmp >= 0 {
+				// this hit can't possibly be in the result set, so avoid heap ops
+				<-pause
+				ctx.PutDocumentMatchInPool(d)
+				return nil
+			}
+		}
+
+		removed := hc.store.AddNotExceedingSize(d, hc.size+hc.skip)
+		if removed != nil {
+			if hc.lowestMatchOutsideResults == nil {
+				hc.lowestMatchOutsideResults = removed
+			} else {
+				cmp := hc.sort.Compare(removed, hc.lowestMatchOutsideResults)
+				if cmp < 0 {
+					ctx.PutDocumentMatchInPool(hc.lowestMatchOutsideResults)
+					hc.lowestMatchOutsideResults = removed
+				}
+			}
+		}
+		<-pause
+		return nil
+	}
 }
 
 // finalizeResults starts with the heap containing the final top size+skip

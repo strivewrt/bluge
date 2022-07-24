@@ -15,6 +15,7 @@
 package search
 
 import (
+	"sync"
 	"time"
 )
 
@@ -59,6 +60,7 @@ type BucketCalculator interface {
 }
 
 type Bucket struct {
+	lock         sync.Mutex // protects the bucket
 	name         string
 	aggregations map[string]Calculator
 }
@@ -89,9 +91,11 @@ func (b *Bucket) Name() string {
 }
 
 func (b *Bucket) Consume(d *DocumentMatch) {
+	b.lock.Lock()
 	for _, aggCalc := range b.aggregations {
 		aggCalc.Consume(d)
 	}
+	b.lock.Unlock()
 }
 
 func (b *Bucket) Finish() {

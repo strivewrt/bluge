@@ -119,3 +119,7 @@ func (a *AllIterator) Next() (next *search.DocumentMatch, err error) {
 func (a *AllIterator) Aggregations() *search.Bucket {
 	return a.bucket
 }
+
+func (i *AllIterator) Size() int {
+	return 0 // impossible to determine size for AllIterator
+}

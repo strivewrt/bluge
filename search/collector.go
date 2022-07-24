@@ -33,5 +33,6 @@ type Collectible interface {
 
 type DocumentMatchIterator interface {
 	Next() (*DocumentMatch, error)
+	Size() int
 	Aggregations() *Bucket
 }

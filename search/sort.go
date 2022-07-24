@@ -75,6 +75,27 @@ func (o SortOrder) Compare(i, j *DocumentMatch) int {
 	return -1
 }
 
+// CompareSearchAfter is like Compare but skips comparing HitNumber since it is not needed
+func (o SortOrder) CompareSearchAfter(i, j *DocumentMatch) int {
+	// compare the documents on all search sorts until a differences is found
+	for x := range o {
+		c := 0
+
+		iVal := i.SortValue[x]
+		jVal := j.SortValue[x]
+		c = bytes.Compare(iVal, jVal)
+		if c == 0 {
+			continue
+		}
+		if o[x].desc {
+			c = -c
+		}
+		return c
+	}
+
+	return 0
+}
+
 type SortValue [][]byte
 
 type Sort struct {

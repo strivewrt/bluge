@@ -104,7 +104,7 @@ func (hc *MultiSearchCollector) collectSingle(d *search.DocumentMatch, bucket *s
 	//}
 
 	// compute this hits sort value
-	//hc.sort.Compute(d)
+	hc.sort.Compute(d)
 
 	// calculate aggregations
 	bucket.Consume(d)
@@ -113,10 +113,7 @@ func (hc *MultiSearchCollector) collectSingle(d *search.DocumentMatch, bucket *s
 	// if this hit is <= the search after sort key
 	// we should skip it
 	if hc.searchAfter != nil {
-		// exact sort order matches use hit number to break tie
-		// but we want to allow for exact match, so we pretend
-		hc.searchAfter.HitNumber = d.HitNumber
-		if hc.sort.Compare(d, hc.searchAfter) <= 0 {
+		if hc.sort.CompareSearchAfter(d, hc.searchAfter) <= 0 {
 			return nil
 		}
 	}

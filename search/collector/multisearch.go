@@ -20,13 +20,21 @@ import (
 	"github.com/blugelabs/bluge/search"
 )
 
+type CollectorConfig struct {
+	Sort         search.SortOrder
+	SearchAfter  *search.DocumentMatch
+	NeededFields []string
+	BackingSize  int
+}
+
 // MultiSearchCollector collects the top N hits, optionally skipping some results
 type MultiSearchCollector struct {
+	CC *CollectorConfig
 	*TopNCollector
 }
 
 // Collect goes to the index to find the matching documents
-func (hc MultiSearchCollector) Collect(ctx context.Context, aggs search.Aggregations,
+func (hc *MultiSearchCollector) Collect(ctx context.Context, aggs search.Aggregations,
 	searcher search.Collectible) (search.DocumentMatchIterator, error) {
 	var err error
 	var next *search.DocumentMatch
@@ -85,11 +93,11 @@ func (hc MultiSearchCollector) Collect(ctx context.Context, aggs search.Aggregat
 	return rv, nil
 }
 
-func (hc MultiSearchCollector) collectSingle(d *search.DocumentMatch, bucket *search.Bucket) error {
+func (hc *MultiSearchCollector) collectSingle(d *search.DocumentMatch, bucket *search.Bucket) error {
 	var err error
 
-	if len(hc.neededFields) > 0 {
-		err = d.LoadDocumentValues(d.Context, hc.neededFields)
+	if len(hc.CC.NeededFields) > 0 {
+		err = d.LoadDocumentValues(d.Context, hc.CC.NeededFields)
 		if err != nil {
 			return err
 		}

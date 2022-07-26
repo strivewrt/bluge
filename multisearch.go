@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/blugelabs/bluge/search"
+	"github.com/blugelabs/bluge/search/collector"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -28,7 +29,7 @@ type MultiSearcherList struct {
 	docChan   chan *search.DocumentMatch
 }
 
-func NewMultiSearcherList(searchers []search.Searcher, cc *CollectorConfig) *MultiSearcherList {
+func NewMultiSearcherList(searchers []search.Searcher, cc *collector.CollectorConfig) *MultiSearcherList {
 	m := &MultiSearcherList{
 		searchers: searchers,
 		docChan:   make(chan *search.DocumentMatch, len(searchers)*2),
@@ -38,21 +39,21 @@ func NewMultiSearcherList(searchers []search.Searcher, cc *CollectorConfig) *Mul
 }
 
 // if one searcher fails, should stop all the rest and exit?
-func (m *MultiSearcherList) collectAllDocuments(cc *CollectorConfig) {
+func (m *MultiSearcherList) collectAllDocuments(cc *collector.CollectorConfig) {
 	errs := errgroup.Group{}
 	errs.SetLimit(1000)
 	for i := range m.searchers {
 		j := i
 		errs.Go(func() error {
 			s := m.searchers[j]
-			ctx := search.NewSearchContext(cc.backingSize+s.DocumentMatchPoolSize(), len(cc.sort))
+			ctx := search.NewSearchContext(cc.BackingSize+s.DocumentMatchPoolSize(), len(cc.Sort))
 
-			dm, err := m.searchers[j].Next(ctx)
+			dm, err := s.Next(ctx)
 
 			for err == nil && dm != nil {
 				dm.Context = ctx
 				m.docChan <- dm
-				dm, err = m.searchers[j].Next(ctx)
+				dm, err = s.Next(ctx)
 			}
 
 			return err
@@ -101,17 +102,16 @@ func MultiSearch(ctx context.Context, req SearchRequest, readers ...*Reader) (se
 		searchers = append(searchers, searcher)
 	}
 
-	collector := req.Collector(true)
-
 	aggs := req.Aggregations()
 	msl := NewMultiSearcherList(searchers, req.CollectorConfig(aggs))
 
+	collector := req.Collector(true)
 	start := time.Now()
 	dmItr, err := collector.Collect(ctx, aggs, msl)
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("multisearch query time: %dms", time.Since(start).Microseconds())
+	log.Printf("multisearch query time: %dmicrosecs", time.Since(start).Microseconds())
 
 	return dmItr, nil
 }

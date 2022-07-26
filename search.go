@@ -22,7 +22,7 @@ import (
 
 type SearchRequest interface {
 	Collector(isMultisearch bool) search.Collector
-	CollectorConfig(aggs search.Aggregations) *CollectorConfig
+	CollectorConfig(aggs search.Aggregations) *collector.CollectorConfig
 	Searcher(i search.Reader, config Config) (search.Searcher, error)
 	AddAggregation(name string, aggregation search.Aggregation)
 	Aggregations() search.Aggregations
@@ -65,6 +65,7 @@ type TopNSearch struct {
 	sort     search.SortOrder
 	after    [][]byte
 	reversed bool
+	CC       *collector.CollectorConfig
 }
 
 // NewTopNSearch creates a search which will find the matches and return the first N when ordered by the
@@ -177,26 +178,23 @@ func (s *TopNSearch) Collector(isMultisearch bool) search.Collector {
 		}
 		rv := collector.NewTopNCollectorAfter(s.n, collectorSort, s.after, s.reversed)
 		if isMultisearch {
-			return collector.MultiSearchCollector{TopNCollector: rv}
+			return &collector.MultiSearchCollector{TopNCollector: rv, CC: s.CC}
 		}
 		return rv
 	}
 	rv := collector.NewTopNCollector(s.n, s.from, s.sort)
 	if isMultisearch {
-		return collector.MultiSearchCollector{TopNCollector: rv}
+		return &collector.MultiSearchCollector{TopNCollector: rv, CC: s.CC}
 	}
 	return rv
 }
 
-type CollectorConfig struct {
-	sort         search.SortOrder
-	searchAfter  *search.DocumentMatch
-	neededFields []string
-	backingSize  int
-}
+func (s *TopNSearch) CollectorConfig(aggs search.Aggregations) *collector.CollectorConfig {
+	if s.CC != nil {
+		return s.CC
+	}
 
-func (s *TopNSearch) CollectorConfig(aggs search.Aggregations) *CollectorConfig {
-	cc := &CollectorConfig{backingSize: s.n}
+	cc := &collector.CollectorConfig{BackingSize: s.n}
 	if s.after != nil {
 		collectorSort := s.sort
 		if s.reversed {
@@ -204,8 +202,8 @@ func (s *TopNSearch) CollectorConfig(aggs search.Aggregations) *CollectorConfig 
 			collectorSort = s.sort.Copy()
 			collectorSort.Reverse()
 		}
-		cc.sort = collectorSort
-		cc.searchAfter = &search.DocumentMatch{
+		cc.Sort = collectorSort
+		cc.SearchAfter = &search.DocumentMatch{
 			SortValue: s.after,
 		}
 	}
@@ -226,7 +224,8 @@ func (s *TopNSearch) CollectorConfig(aggs search.Aggregations) *CollectorConfig 
 		}
 	}
 
-	cc.neededFields = neededFields
+	cc.NeededFields = neededFields
+	s.CC = cc
 
 	return cc
 }
@@ -285,8 +284,8 @@ func (s *AllMatches) IncludeLocations() *AllMatches {
 	return s
 }
 
-func (s *AllMatches) CollectorConfig(_ search.Aggregations) *CollectorConfig {
-	return &CollectorConfig{}
+func (s *AllMatches) CollectorConfig(_ search.Aggregations) *collector.CollectorConfig {
+	return &collector.CollectorConfig{}
 }
 func (s *AllMatches) Collector(_ bool) search.Collector {
 	return collector.NewAllCollector()

@@ -17,7 +17,6 @@ package bluge
 import (
 	"context"
 	"log"
-	"sync"
 	"time"
 
 	"github.com/blugelabs/bluge/search"
@@ -27,7 +26,6 @@ import (
 type MultiSearcherList struct {
 	searchers []search.Searcher
 	docChan   chan *search.DocumentMatch
-	once      sync.Once
 }
 
 func NewMultiSearcherList(searchers []search.Searcher, cc *CollectorConfig) *MultiSearcherList {
@@ -103,7 +101,7 @@ func MultiSearch(ctx context.Context, req SearchRequest, readers ...*Reader) (se
 		searchers = append(searchers, searcher)
 	}
 
-	collector := req.Collector()
+	collector := req.Collector(true)
 
 	aggs := req.Aggregations()
 	msl := NewMultiSearcherList(searchers, req.CollectorConfig(aggs))

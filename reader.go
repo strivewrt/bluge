@@ -58,7 +58,7 @@ func (r *Reader) VisitStoredFields(number uint64, visitor StoredFieldVisitor) er
 }
 
 func (r *Reader) Search(ctx context.Context, req SearchRequest) (search.DocumentMatchIterator, error) {
-	collector := req.Collector()
+	collector := req.Collector(false)
 	searcher, err := req.Searcher(r.reader, r.config)
 	if err != nil {
 		return nil, err

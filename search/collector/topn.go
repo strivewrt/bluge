@@ -200,11 +200,11 @@ func (hc *TopNCollector) Collect(ctx context.Context, aggs search.Aggregations,
 	return rv, nil
 }
 
-func (hc *TopNCollector) collectSingle(_ *search.Context, d *search.DocumentMatch, bucket *search.Bucket) error {
+func (hc *TopNCollector) collectSingle(ctx *search.Context, d *search.DocumentMatch, bucket *search.Bucket) error {
 	var err error
 
 	if len(hc.neededFields) > 0 {
-		err = d.LoadDocumentValues(d.Context, hc.neededFields)
+		err = d.LoadDocumentValues(ctx, hc.neededFields)
 		if err != nil {
 			return err
 		}
@@ -235,7 +235,7 @@ func (hc *TopNCollector) collectSingle(_ *search.Context, d *search.DocumentMatc
 		cmp := hc.sort.Compare(d, hc.lowestMatchOutsideResults)
 		if cmp >= 0 {
 			// this hit can't possibly be in the result set, so avoid heap ops
-			d.Context.DocumentMatchPool.Put(d)
+			ctx.DocumentMatchPool.Put(d)
 			return nil
 		}
 	}
@@ -249,7 +249,7 @@ func (hc *TopNCollector) collectSingle(_ *search.Context, d *search.DocumentMatc
 			if cmp < 0 {
 				tmp := hc.lowestMatchOutsideResults
 				hc.lowestMatchOutsideResults = removed
-				d.Context.DocumentMatchPool.Put(tmp)
+				ctx.DocumentMatchPool.Put(tmp)
 			}
 		}
 	}

@@ -21,7 +21,7 @@ import (
 )
 
 type SearchRequest interface {
-	Collector() search.Collector
+	Collector(isMultisearch bool) search.Collector
 	CollectorConfig(aggs search.Aggregations) *CollectorConfig
 	Searcher(i search.Reader, config Config) (search.Searcher, error)
 	AddAggregation(name string, aggregation search.Aggregation)
@@ -167,7 +167,7 @@ func (s *TopNSearch) SetScore(mode string) *TopNSearch {
 	return s
 }
 
-func (s *TopNSearch) Collector() search.Collector {
+func (s *TopNSearch) Collector(isMultisearch bool) search.Collector {
 	if s.after != nil {
 		collectorSort := s.sort
 		if s.reversed {
@@ -176,9 +176,16 @@ func (s *TopNSearch) Collector() search.Collector {
 			collectorSort.Reverse()
 		}
 		rv := collector.NewTopNCollectorAfter(s.n, collectorSort, s.after, s.reversed)
+		if isMultisearch {
+			return collector.MultiSearchCollector{TopNCollector: rv}
+		}
 		return rv
 	}
-	return collector.NewTopNCollector(s.n, s.from, s.sort)
+	rv := collector.NewTopNCollector(s.n, s.from, s.sort)
+	if isMultisearch {
+		return collector.MultiSearchCollector{TopNCollector: rv}
+	}
+	return rv
 }
 
 type CollectorConfig struct {
@@ -198,6 +205,9 @@ func (s *TopNSearch) CollectorConfig(aggs search.Aggregations) *CollectorConfig 
 			collectorSort.Reverse()
 		}
 		cc.sort = collectorSort
+		cc.searchAfter = &search.DocumentMatch{
+			SortValue: s.after,
+		}
 	}
 
 	// add fields needed by aggregations
@@ -278,7 +288,7 @@ func (s *AllMatches) IncludeLocations() *AllMatches {
 func (s *AllMatches) CollectorConfig(_ search.Aggregations) *CollectorConfig {
 	return &CollectorConfig{}
 }
-func (s *AllMatches) Collector() search.Collector {
+func (s *AllMatches) Collector(_ bool) search.Collector {
 	return collector.NewAllCollector()
 }
 

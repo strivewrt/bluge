@@ -111,7 +111,7 @@ func MultiSearch(ctx context.Context, req SearchRequest, readers ...*Reader) (se
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("multisearch query time: %dmicrosecs", time.Since(start).Microseconds())
+	log.Printf("multisearch query time: %dmicrosecs\n", time.Since(start).Microseconds())
 
 	return dmItr, nil
 }

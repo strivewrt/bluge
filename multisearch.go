@@ -16,39 +16,61 @@ package bluge
 
 import (
 	"context"
+	"log"
+	"sync"
+	"time"
 
 	"github.com/blugelabs/bluge/search"
+	"golang.org/x/sync/errgroup"
 )
 
 type MultiSearcherList struct {
 	searchers []search.Searcher
-	index     int
-	err       error
+	docChan   chan *search.DocumentMatch
+	once      sync.Once
 }
 
-func NewMultiSearcherList(searchers []search.Searcher) *MultiSearcherList {
-	return &MultiSearcherList{
+func NewMultiSearcherList(searchers []search.Searcher, cc *CollectorConfig) *MultiSearcherList {
+	m := &MultiSearcherList{
 		searchers: searchers,
+		docChan:   make(chan *search.DocumentMatch, len(searchers)*2),
 	}
+	go m.collectAllDocuments(cc)
+	return m
 }
 
-func (m *MultiSearcherList) Next(ctx *search.Context) (*search.DocumentMatch, error) {
-	if m.err != nil {
-		return nil, m.err
+// if one searcher fails, should stop all the rest and exit?
+func (m *MultiSearcherList) collectAllDocuments(cc *CollectorConfig) {
+	errs := errgroup.Group{}
+	errs.SetLimit(1000)
+	for i := range m.searchers {
+		j := i
+		errs.Go(func() error {
+			s := m.searchers[j]
+			ctx := search.NewSearchContext(cc.backingSize+s.DocumentMatchPoolSize(), len(cc.sort))
+
+			dm, err := m.searchers[j].Next(ctx)
+
+			for err == nil && dm != nil {
+				dm.Context = ctx
+				m.docChan <- dm
+				dm, err = m.searchers[j].Next(ctx)
+			}
+
+			return err
+		})
 	}
-	if m.index < len(m.searchers) {
-		var dm *search.DocumentMatch
-		dm, m.err = m.searchers[m.index].Next(ctx)
-		if m.err != nil {
-			return nil, m.err
-		}
-		if dm == nil {
-			m.index++
-			return m.Next(ctx)
-		}
-		return dm, nil
+
+	err := errs.Wait()
+	if err != nil {
+		log.Printf("multisearcher failed: %s", err.Error())
 	}
-	return nil, nil
+
+	close(m.docChan)
+}
+
+func (m *MultiSearcherList) Next(_ *search.Context) (*search.DocumentMatch, error) {
+	return <-m.docChan, nil
 }
 
 func (m *MultiSearcherList) DocumentMatchPoolSize() int {
@@ -62,7 +84,6 @@ func (m *MultiSearcherList) DocumentMatchPoolSize() int {
 	}
 	return rv
 }
-
 func (m *MultiSearcherList) Close() (err error) {
 	for _, searcher := range m.searchers {
 		cerr := searcher.Close()
@@ -72,11 +93,8 @@ func (m *MultiSearcherList) Close() (err error) {
 	}
 	return err
 }
-
 func MultiSearch(ctx context.Context, req SearchRequest, readers ...*Reader) (search.DocumentMatchIterator, error) {
-	collector := req.Collector()
-
-	var searchers []search.Searcher
+	searchers := make([]search.Searcher, 0, len(readers))
 	for _, reader := range readers {
 		searcher, err := req.Searcher(reader.reader, reader.config)
 		if err != nil {
@@ -85,11 +103,17 @@ func MultiSearch(ctx context.Context, req SearchRequest, readers ...*Reader) (se
 		searchers = append(searchers, searcher)
 	}
 
-	msl := NewMultiSearcherList(searchers)
-	dmItr, err := collector.Collect(ctx, req.Aggregations(), msl)
+	collector := req.Collector()
+
+	aggs := req.Aggregations()
+	msl := NewMultiSearcherList(searchers, req.CollectorConfig(aggs))
+
+	start := time.Now()
+	dmItr, err := collector.Collect(ctx, aggs, msl)
 	if err != nil {
 		return nil, err
 	}
+	log.Printf("multisearch query time: %dms", time.Since(start).Microseconds())
 
 	return dmItr, nil
 }

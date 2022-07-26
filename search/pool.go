@@ -14,6 +14,8 @@
 
 package search
 
+import "sync"
+
 // DocumentMatchPoolTooSmall is a callback function that can be executed
 // when the DocumentMatchPool does not have sufficient capacity
 // By default we just perform just-in-time allocation, but you could log
@@ -25,8 +27,10 @@ type DocumentMatchPoolTooSmall func(p *DocumentMatchPool) *DocumentMatch
 // number of instances.  It is not thread-safe as currently all
 // aspects of search take place in a single goroutine.
 type DocumentMatchPool struct {
-	avail    DocumentMatchCollection
-	TooSmall DocumentMatchPoolTooSmall
+	pool *sync.Pool
+	size int
+	//avail    DocumentMatchCollection
+	//TooSmall DocumentMatchPoolTooSmall
 }
 
 func defaultDocumentMatchPoolTooSmall(p *DocumentMatchPool) *DocumentMatch {
@@ -37,21 +41,31 @@ func defaultDocumentMatchPoolTooSmall(p *DocumentMatchPool) *DocumentMatch {
 // pre-allocated to accommodate the requested number of DocumentMatch
 // instances
 func NewDocumentMatchPool(size, sortSize int) *DocumentMatchPool {
-	avail := make(DocumentMatchCollection, size)
+	pool := &sync.Pool{
+		New: func() interface{} {
+			return &DocumentMatch{}
+		},
+	}
+
+	startSorts := make([][]byte, size*sortSize) // shared sorts slice
+
+	j := 0
+	d := &DocumentMatch{SortValue: startSorts[j:j]}
+	j += sortSize
+	pool.Put(d)
+
 	// pre-allocate the expected number of instances
-	startBlock := make([]DocumentMatch, size)
-	startSorts := make([][]byte, size*sortSize)
-	// make these initial instances available
-	i, j := 0, 0
-	for i < size {
-		avail[i] = &startBlock[i]
-		avail[i].SortValue = startSorts[j:j]
-		i++
+	// make these initial instances available in the pool
+	for i := 1; i < size; i++ { // start from i := 1, since we have added one above
+		pool.Put(&DocumentMatch{
+			SortValue: startSorts[j:j],
+		})
 		j += sortSize
 	}
+
 	return &DocumentMatchPool{
-		avail:    avail,
-		TooSmall: defaultDocumentMatchPoolTooSmall,
+		pool: pool,
+		size: d.Size() * size,
 	}
 }
 
@@ -60,13 +74,12 @@ func NewDocumentMatchPool(size, sortSize int) *DocumentMatchPool {
 // occur to satisfy this request.  As a side-effect this will grow the size
 // of the pool.
 func (p *DocumentMatchPool) Get() *DocumentMatch {
-	var rv *DocumentMatch
-	if len(p.avail) > 0 {
-		rv, p.avail = p.avail[len(p.avail)-1], p.avail[:len(p.avail)-1]
-	} else {
-		rv = p.TooSmall(p)
-	}
-	return rv
+	return p.pool.Get().(*DocumentMatch)
+}
+
+// Size returns the size of the DocumentMatchSyncPool
+func (p *DocumentMatchPool) Size() int {
+	return p.size
 }
 
 // Put returns a DocumentMatch to the pool
@@ -74,7 +87,7 @@ func (p *DocumentMatchPool) Put(d *DocumentMatch) {
 	if d == nil {
 		return
 	}
-	// reset DocumentMatch before returning it to available pool
-	d.Reset()
-	p.avail = append(p.avail, d)
+
+	d.Reset() // reset DocumentMatch before returning it to available pool
+	p.pool.Put(d)
 }

@@ -22,6 +22,7 @@ import (
 
 type SearchRequest interface {
 	Collector() search.Collector
+	CollectorConfig(aggs search.Aggregations) *CollectorConfig
 	Searcher(i search.Reader, config Config) (search.Searcher, error)
 	AddAggregation(name string, aggregation search.Aggregation)
 	Aggregations() search.Aggregations
@@ -180,6 +181,46 @@ func (s *TopNSearch) Collector() search.Collector {
 	return collector.NewTopNCollector(s.n, s.from, s.sort)
 }
 
+type CollectorConfig struct {
+	sort         search.SortOrder
+	searchAfter  *search.DocumentMatch
+	neededFields []string
+	backingSize  int
+}
+
+func (s *TopNSearch) CollectorConfig(aggs search.Aggregations) *CollectorConfig {
+	cc := &CollectorConfig{backingSize: s.n}
+	if s.after != nil {
+		collectorSort := s.sort
+		if s.reversed {
+			// preserve original sort order in the request
+			collectorSort = s.sort.Copy()
+			collectorSort.Reverse()
+		}
+		cc.sort = collectorSort
+	}
+
+	// add fields needed by aggregations
+	f := aggs.Fields()
+	neededFields := make([]string, 0, len(f))
+	copy(neededFields, f)
+	// filter repeated field
+	if len(neededFields) > 1 {
+		store := make(map[string]struct{}, len(neededFields))
+		for _, field := range neededFields {
+			store[field] = struct{}{}
+		}
+		neededFields = neededFields[:0]
+		for field := range store {
+			neededFields = append(neededFields, field)
+		}
+	}
+
+	cc.neededFields = neededFields
+
+	return cc
+}
+
 func searchOptionsFromConfig(config Config, options SearchOptions) search.SearcherOptions {
 	return search.SearcherOptions{
 		SimilarityForField: func(field string) search.Similarity {
@@ -234,6 +275,9 @@ func (s *AllMatches) IncludeLocations() *AllMatches {
 	return s
 }
 
+func (s *AllMatches) CollectorConfig(_ search.Aggregations) *CollectorConfig {
+	return &CollectorConfig{}
+}
 func (s *AllMatches) Collector() search.Collector {
 	return collector.NewAllCollector()
 }

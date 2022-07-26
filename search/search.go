@@ -96,6 +96,8 @@ type DocumentMatch struct {
 	// used to maintain natural index order
 	HitNumber int
 
+	Context *Context // the Context that this DocumentMatch was taken from
+
 	// used to temporarily hold field term location information during
 	// search processing in an efficient, recycle-friendly manner, to
 	// be later incorporated into the Locations map when search
@@ -301,11 +303,12 @@ func (sc *Context) Size() int {
 		reflectStaticSizeDocumentMatchPool + sizeOfPtr
 
 	if sc.DocumentMatchPool != nil {
-		for _, entry := range sc.DocumentMatchPool.avail {
-			if entry != nil {
-				sizeInBytes += entry.Size()
-			}
-		}
+		sizeInBytes += sc.DocumentMatchPool.size
+		//for _, entry := range sc.DocumentMatchPool.avail {
+		//	if entry != nil {
+		//		sizeInBytes += entry.Size()
+		//	}
+		//}
 	}
 
 	return sizeInBytes

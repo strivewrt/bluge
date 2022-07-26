@@ -17,7 +17,6 @@ package bluge
 import (
 	"context"
 	"log"
-	"time"
 
 	"github.com/blugelabs/bluge/search"
 	"github.com/blugelabs/bluge/search/collector"
@@ -42,15 +41,28 @@ func NewMultiSearcherList(searchers []search.Searcher, cc *collector.CollectorCo
 func (m *MultiSearcherList) collectAllDocuments(cc *collector.CollectorConfig) {
 	errs := errgroup.Group{}
 	errs.SetLimit(1000)
+
+	size := (cc.BackingSize + m.DocumentMatchPoolSize()) / len(m.searchers)
+	size += 100
 	for i := range m.searchers {
-		j := i
+		s := m.searchers[i]
 		errs.Go(func() error {
-			s := m.searchers[j]
-			ctx := search.NewSearchContext(cc.BackingSize+s.DocumentMatchPoolSize(), len(cc.Sort))
+			ctx := search.NewSearchContext(size, len(cc.Sort))
 
 			dm, err := s.Next(ctx)
 
 			for err == nil && dm != nil {
+
+				if len(cc.NeededFields) > 0 {
+					err = dm.LoadDocumentValues(ctx, cc.NeededFields)
+					if err != nil {
+						return err
+					}
+				}
+
+				// compute this hits sort value
+				cc.Sort.Compute(dm)
+
 				dm.Context = ctx
 				m.docChan <- dm
 				dm, err = s.Next(ctx)
@@ -106,12 +118,10 @@ func MultiSearch(ctx context.Context, req SearchRequest, readers ...*Reader) (se
 	msl := NewMultiSearcherList(searchers, req.CollectorConfig(aggs))
 
 	collector := req.Collector(true)
-	start := time.Now()
 	dmItr, err := collector.Collect(ctx, aggs, msl)
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("multisearch query time: %dmicrosecs\n", time.Since(start).Microseconds())
 
 	return dmItr, nil
 }

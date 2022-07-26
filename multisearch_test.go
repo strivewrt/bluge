@@ -16,7 +16,11 @@ package bluge
 
 import (
 	"context"
+	"fmt"
 	"testing"
+	"time"
+
+	"github.com/google/uuid"
 )
 
 func TestMultiSearch(t *testing.T) {
@@ -63,10 +67,15 @@ func TestMultiSearch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error getting index reader: %v", err)
 	}
+	err = prepareDocs(indexWriter1, 2000)
+	if err != nil {
+		t.Fatalf("error preparing docs: %v", err)
+	}
 
 	q := NewPrefixQuery("index-").SetField("name")
-	req := NewTopNSearch(10, q).WithStandardAggregations()
+	req := NewTopNSearch(200, q).WithStandardAggregations()
 
+	start := time.Now()
 	dmi, err := MultiSearch(context.Background(), req, indexReader1, indexReader2)
 	if err != nil {
 		t.Fatalf("error starting multisearch: %v", err)
@@ -77,6 +86,7 @@ func TestMultiSearch(t *testing.T) {
 		hitCount++
 		next, err = dmi.Next()
 	}
+	fmt.Printf("query time: %d\n", time.Since(start).Milliseconds())
 	if err != nil {
 		t.Fatalf("error iterating results")
 	}
@@ -101,4 +111,17 @@ func TestMultiSearch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+}
+
+func prepareDocs(iw *Writer, n int) error {
+	for i := 0; i < n; i++ {
+		doc := NewDocument("a").
+			AddField(NewKeywordField("name", "index-"+uuid.NewString()))
+
+		err := iw.Update(doc.ID(), doc)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

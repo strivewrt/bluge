@@ -94,17 +94,17 @@ func (hc *MultiSearchCollector) Collect(ctx context.Context, aggs search.Aggrega
 }
 
 func (hc *MultiSearchCollector) collectSingle(d *search.DocumentMatch, bucket *search.Bucket) error {
-	var err error
+	//var err error
 
-	if len(hc.CC.NeededFields) > 0 {
-		err = d.LoadDocumentValues(d.Context, hc.CC.NeededFields)
-		if err != nil {
-			return err
-		}
-	}
+	//if len(hc.CC.NeededFields) > 0 {
+	//	err = d.LoadDocumentValues(d.Context, hc.CC.NeededFields)
+	//	if err != nil {
+	//		return err
+	//	}
+	//}
 
 	// compute this hits sort value
-	hc.sort.Compute(d)
+	//hc.sort.Compute(d)
 
 	// calculate aggregations
 	bucket.Consume(d)

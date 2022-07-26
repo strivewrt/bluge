@@ -65,10 +65,10 @@ func (hc *MultiSearchCollector) Collect(ctx context.Context, aggs search.Aggrega
 		hitNumber++
 		next.HitNumber = hitNumber
 
-		err = hc.collectSingle(next, bucket)
-		if err != nil {
-			return nil, err
-		}
+		hc.collectSingle(next, bucket)
+		// if err != nil {
+		//	return nil, err
+		// }
 
 		next, err = searcher.Next(nil)
 	}
@@ -93,16 +93,7 @@ func (hc *MultiSearchCollector) Collect(ctx context.Context, aggs search.Aggrega
 	return rv, nil
 }
 
-func (hc *MultiSearchCollector) collectSingle(d *search.DocumentMatch, bucket *search.Bucket) error {
-	//var err error
-
-	//if len(hc.CC.NeededFields) > 0 {
-	//	err = d.LoadDocumentValues(d.Context, hc.CC.NeededFields)
-	//	if err != nil {
-	//		return err
-	//	}
-	//}
-
+func (hc *MultiSearchCollector) collectSingle(d *search.DocumentMatch, bucket *search.Bucket) {
 	// compute this hits sort value
 	hc.sort.Compute(d)
 
@@ -114,7 +105,7 @@ func (hc *MultiSearchCollector) collectSingle(d *search.DocumentMatch, bucket *s
 	// we should skip it
 	if hc.searchAfter != nil {
 		if hc.sort.CompareSearchAfter(d, hc.searchAfter) <= 0 {
-			return nil
+			return
 		}
 	}
 
@@ -126,7 +117,7 @@ func (hc *MultiSearchCollector) collectSingle(d *search.DocumentMatch, bucket *s
 		if cmp >= 0 {
 			// this hit can't possibly be in the result set, so avoid heap ops
 			d.Context.DocumentMatchPool.Put(d)
-			return nil
+			return
 		}
 	}
 
@@ -143,5 +134,5 @@ func (hc *MultiSearchCollector) collectSingle(d *search.DocumentMatch, bucket *s
 			}
 		}
 	}
-	return nil
+	return
 }

@@ -43,6 +43,11 @@ func (m *MultiSearcherList) collectAllDocuments(cc *collector.CollectorConfig) {
 	errs.SetLimit(1000)
 
 	size := (cc.BackingSize + m.DocumentMatchPoolSize()) / len(m.searchers)
+
+	if len(m.searchers) > 0 {
+		size = size / len(m.searchers)
+	}
+
 	size += 100
 	for i := range m.searchers {
 		s := m.searchers[i]
@@ -105,6 +110,7 @@ func (m *MultiSearcherList) Close() (err error) {
 	return err
 }
 func MultiSearch(ctx context.Context, req SearchRequest, readers ...*Reader) (search.DocumentMatchIterator, error) {
+	log.Printf("len readers: %d", len(readers))
 	searchers := make([]search.Searcher, 0, len(readers))
 	for _, reader := range readers {
 		searcher, err := req.Searcher(reader.reader, reader.config)
@@ -117,8 +123,7 @@ func MultiSearch(ctx context.Context, req SearchRequest, readers ...*Reader) (se
 	aggs := req.Aggregations()
 	msl := NewMultiSearcherList(searchers, req.CollectorConfig(aggs))
 
-	collector := req.Collector(true)
-	dmItr, err := collector.Collect(ctx, aggs, msl)
+	dmItr, err := req.Collector(true).Collect(ctx, aggs, msl)
 	if err != nil {
 		return nil, err
 	}

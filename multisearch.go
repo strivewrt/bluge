@@ -42,8 +42,7 @@ func (m *MultiSearcherList) collectAllDocuments(cc *collector.CollectorConfig) {
 	errs := errgroup.Group{}
 	errs.SetLimit(1000)
 
-	size := (cc.BackingSize + m.DocumentMatchPoolSize()) / len(m.searchers)
-
+	size := cc.BackingSize + m.DocumentMatchPoolSize()
 	if len(m.searchers) > 0 {
 		size = size / len(m.searchers)
 	}
@@ -57,7 +56,6 @@ func (m *MultiSearcherList) collectAllDocuments(cc *collector.CollectorConfig) {
 			dm, err := s.Next(ctx)
 
 			for err == nil && dm != nil {
-
 				if len(cc.NeededFields) > 0 {
 					err = dm.LoadDocumentValues(ctx, cc.NeededFields)
 					if err != nil {

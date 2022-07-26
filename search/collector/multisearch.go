@@ -134,5 +134,4 @@ func (hc *MultiSearchCollector) collectSingle(d *search.DocumentMatch, bucket *s
 			}
 		}
 	}
-	return
 }

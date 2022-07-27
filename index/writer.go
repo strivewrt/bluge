@@ -507,7 +507,20 @@ func (s *Writer) loadSnapshot(epoch uint64) (*Snapshot, error) {
 	var running uint64
 	eg := errgroup.Group{}
 	eg.SetLimit(s.config.NumAnalysisWorkers)
-	for _, segSnapshot := range snapshot.segment {
+	offsetChan := make(chan rutineOffset, s.config.NumAnalysisWorkers)
+
+	ego := errgroup.Group{}
+	ego.Go(func() error {
+		for offset := range offsetChan {
+			snapshot.offsets[offset.id] = offset.offset
+		}
+		return nil
+	})
+
+	snapshot.offsets = make([]uint64, len(snapshot.segment))
+	for i, segSnapshot := range snapshot.segment {
+		i := i
+		segSnapshot := segSnapshot
 		eg.Go(func() error {
 			segPlugin, err := loadSegmentPlugin(s.config.supportedSegmentPlugins, segSnapshot.segmentType, segSnapshot.segmentVersion)
 			if err != nil {
@@ -518,18 +531,22 @@ func (s *Writer) loadSnapshot(epoch uint64) (*Snapshot, error) {
 				return fmt.Errorf("error opening segment %d: %w", segSnapshot.id, err)
 			}
 
-			snapshot.offsets = append(snapshot.offsets, running)
-			running += segSnapshot.segment.Count()
+			offsetChan <- rutineOffset{id: i, offset: segSnapshot.segment.Count()}
 
 			return nil
 		})
-		err := eg.Wait()
-		if err != nil {
-			return nil, err
-		}
 	}
 
-	return snapshot, nil
+	err = eg.Wait()
+	close(offsetChan)
+	_ = ego.Wait()
+
+	for i, offset := range snapshot.offsets {
+		snapshot.offsets[i] = running
+		running += offset
+	}
+
+	return snapshot, err
 }
 
 func (s *Writer) loadSegment(id uint64, plugin *SegmentPlugin) (*segmentWrapper, error) {
@@ -563,4 +580,9 @@ func analysisWorker(q chan func(), closeCh chan struct{}) {
 			w()
 		}
 	}
+}
+
+type rutineOffset struct {
+	id     int
+	offset uint64
 }

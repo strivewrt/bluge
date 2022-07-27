@@ -304,11 +304,6 @@ func (sc *Context) Size() int {
 
 	if sc.DocumentMatchPool != nil {
 		sizeInBytes += sc.DocumentMatchPool.size
-		//for _, entry := range sc.DocumentMatchPool.avail {
-		//	if entry != nil {
-		//		sizeInBytes += entry.Size()
-		//	}
-		//}
 	}
 
 	return sizeInBytes

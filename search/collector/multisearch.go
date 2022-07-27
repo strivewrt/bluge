@@ -20,7 +20,7 @@ import (
 	"github.com/blugelabs/bluge/search"
 )
 
-type CollectorConfig struct {
+type Config struct {
 	Sort         search.SortOrder
 	SearchAfter  *search.DocumentMatch
 	NeededFields []string
@@ -29,7 +29,7 @@ type CollectorConfig struct {
 
 // MultiSearchCollector collects the top N hits, optionally skipping some results
 type MultiSearchCollector struct {
-	CC *CollectorConfig
+	Config *Config
 	*TopNCollector
 }
 
@@ -66,10 +66,6 @@ func (hc *MultiSearchCollector) Collect(ctx context.Context, aggs search.Aggrega
 		next.HitNumber = hitNumber
 
 		hc.collectSingle(next, bucket)
-		// if err != nil {
-		//	return nil, err
-		// }
-
 		next, err = searcher.Next(nil)
 	}
 	if err != nil {
@@ -94,9 +90,6 @@ func (hc *MultiSearchCollector) Collect(ctx context.Context, aggs search.Aggrega
 }
 
 func (hc *MultiSearchCollector) collectSingle(d *search.DocumentMatch, bucket *search.Bucket) {
-	// compute this hits sort value
-	//hc.sort.Compute(d)
-
 	// calculate aggregations
 	bucket.Consume(d)
 

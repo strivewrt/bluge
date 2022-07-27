@@ -28,7 +28,7 @@ type MultiSearcherList struct {
 	docChan   chan *search.DocumentMatch
 }
 
-func NewMultiSearcherList(searchers []search.Searcher, cc *collector.CollectorConfig) *MultiSearcherList {
+func NewMultiSearcherList(searchers []search.Searcher, cc *collector.Config) *MultiSearcherList {
 	m := &MultiSearcherList{
 		searchers: searchers,
 		docChan:   make(chan *search.DocumentMatch, len(searchers)*2),
@@ -38,13 +38,13 @@ func NewMultiSearcherList(searchers []search.Searcher, cc *collector.CollectorCo
 }
 
 // if one searcher fails, should stop all the rest and exit?
-func (m *MultiSearcherList) collectAllDocuments(cc *collector.CollectorConfig) {
+func (m *MultiSearcherList) collectAllDocuments(cc *collector.Config) {
 	errs := errgroup.Group{}
 	errs.SetLimit(1000)
 
 	size := cc.BackingSize + m.DocumentMatchPoolSize()
 	if len(m.searchers) > 0 {
-		size = size / len(m.searchers)
+		size /= len(m.searchers)
 	}
 
 	size += 100

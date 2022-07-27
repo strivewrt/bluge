@@ -22,7 +22,7 @@ import (
 
 type SearchRequest interface {
 	Collector(isMultisearch bool) search.Collector
-	CollectorConfig(aggs search.Aggregations) *collector.CollectorConfig
+	CollectorConfig(aggs search.Aggregations) *collector.Config
 	Searcher(i search.Reader, config Config) (search.Searcher, error)
 	AddAggregation(name string, aggregation search.Aggregation)
 	Aggregations() search.Aggregations
@@ -65,7 +65,7 @@ type TopNSearch struct {
 	sort     search.SortOrder
 	after    [][]byte
 	reversed bool
-	CC       *collector.CollectorConfig
+	CC       *collector.Config
 }
 
 // NewTopNSearch creates a search which will find the matches and return the first N when ordered by the
@@ -178,23 +178,23 @@ func (s *TopNSearch) Collector(isMultisearch bool) search.Collector {
 		}
 		rv := collector.NewTopNCollectorAfter(s.n, collectorSort, s.after, s.reversed)
 		if isMultisearch {
-			return &collector.MultiSearchCollector{TopNCollector: rv, CC: s.CC}
+			return &collector.MultiSearchCollector{TopNCollector: rv, Config: s.CC}
 		}
 		return rv
 	}
 	rv := collector.NewTopNCollector(s.n, s.from, s.sort)
 	if isMultisearch {
-		return &collector.MultiSearchCollector{TopNCollector: rv, CC: s.CC}
+		return &collector.MultiSearchCollector{TopNCollector: rv, Config: s.CC}
 	}
 	return rv
 }
 
-func (s *TopNSearch) CollectorConfig(aggs search.Aggregations) *collector.CollectorConfig {
+func (s *TopNSearch) CollectorConfig(aggs search.Aggregations) *collector.Config {
 	if s.CC != nil {
 		return s.CC
 	}
 
-	cc := &collector.CollectorConfig{BackingSize: s.n, Sort: s.sort}
+	cc := &collector.Config{BackingSize: s.n, Sort: s.sort}
 	if s.after != nil {
 		if s.reversed {
 			// preserve original sort order in the request
@@ -282,8 +282,8 @@ func (s *AllMatches) IncludeLocations() *AllMatches {
 	return s
 }
 
-func (s *AllMatches) CollectorConfig(_ search.Aggregations) *collector.CollectorConfig {
-	return &collector.CollectorConfig{}
+func (s *AllMatches) CollectorConfig(_ search.Aggregations) *collector.Config {
+	return &collector.Config{}
 }
 func (s *AllMatches) Collector(_ bool) search.Collector {
 	return collector.NewAllCollector()

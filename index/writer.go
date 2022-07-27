@@ -24,9 +24,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	segment "github.com/blugelabs/bluge_segment_api"
-
 	"github.com/RoaringBitmap/roaring"
+	segment "github.com/blugelabs/bluge_segment_api"
+	"golang.org/x/sync/errgroup"
 )
 
 type Writer struct {
@@ -505,18 +505,28 @@ func (s *Writer) loadSnapshot(epoch uint64) (*Snapshot, error) {
 	}
 
 	var running uint64
+	eg := errgroup.Group{}
+	eg.SetLimit(s.config.NumAnalysisWorkers)
 	for _, segSnapshot := range snapshot.segment {
-		segPlugin, err := loadSegmentPlugin(s.config.supportedSegmentPlugins, segSnapshot.segmentType, segSnapshot.segmentVersion)
-		if err != nil {
-			return nil, fmt.Errorf("error loading required segment plugin: %v", err)
-		}
-		segSnapshot.segment, err = s.loadSegment(segSnapshot.id, segPlugin)
-		if err != nil {
-			return nil, fmt.Errorf("error opening segment %d: %w", segSnapshot.id, err)
-		}
+		eg.Go(func() error {
+			segPlugin, err := loadSegmentPlugin(s.config.supportedSegmentPlugins, segSnapshot.segmentType, segSnapshot.segmentVersion)
+			if err != nil {
+				return fmt.Errorf("error loading required segment plugin: %v", err)
+			}
+			segSnapshot.segment, err = s.loadSegment(segSnapshot.id, segPlugin)
+			if err != nil {
+				return fmt.Errorf("error opening segment %d: %w", segSnapshot.id, err)
+			}
 
-		snapshot.offsets = append(snapshot.offsets, running)
-		running += segSnapshot.segment.Count()
+			snapshot.offsets = append(snapshot.offsets, running)
+			running += segSnapshot.segment.Count()
+
+			return nil
+		})
+		err := eg.Wait()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return snapshot, nil

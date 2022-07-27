@@ -64,7 +64,7 @@ func (m *MultiSearcherList) collectAllDocuments(cc *collector.CollectorConfig) {
 				}
 
 				// compute this hits sort value
-				//cc.Sort.Compute(dm)
+				cc.Sort.Compute(dm)
 
 				dm.Context = ctx
 				m.docChan <- dm

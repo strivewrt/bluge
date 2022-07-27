@@ -95,7 +95,7 @@ func (hc *MultiSearchCollector) Collect(ctx context.Context, aggs search.Aggrega
 
 func (hc *MultiSearchCollector) collectSingle(d *search.DocumentMatch, bucket *search.Bucket) {
 	// compute this hits sort value
-	hc.sort.Compute(d)
+	//hc.sort.Compute(d)
 
 	// calculate aggregations
 	bucket.Consume(d)

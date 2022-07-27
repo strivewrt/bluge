@@ -194,15 +194,13 @@ func (s *TopNSearch) CollectorConfig(aggs search.Aggregations) *collector.Collec
 		return s.CC
 	}
 
-	cc := &collector.CollectorConfig{BackingSize: s.n}
+	cc := &collector.CollectorConfig{BackingSize: s.n, Sort: s.sort}
 	if s.after != nil {
-		collectorSort := s.sort
 		if s.reversed {
 			// preserve original sort order in the request
-			collectorSort = s.sort.Copy()
-			collectorSort.Reverse()
+			cc.Sort = s.sort.Copy()
+			cc.Sort.Reverse()
 		}
-		cc.Sort = collectorSort
 		cc.SearchAfter = &search.DocumentMatch{
 			SortValue: s.after,
 		}

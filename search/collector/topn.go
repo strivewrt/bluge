@@ -20,7 +20,7 @@ import (
 	"github.com/blugelabs/bluge/search"
 )
 
-type collectorStore interface {
+type CollectorStore interface {
 	// Add the document, and if the new store size exceeds the provided size
 	// the last element is removed and returned.  If the size has not been
 	// exceeded, nil is returned.
@@ -46,7 +46,7 @@ type TopNCollector struct {
 	reverse     bool
 	backingSize int
 
-	store collectorStore
+	store CollectorStore
 
 	neededFields []string
 

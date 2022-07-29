@@ -25,6 +25,18 @@ type collectStoreHeap struct {
 	compare collectorCompare
 }
 
+func NewCollectorStore(size, skip int, reverse bool, sort search.SortOrder) CollectorStore {
+	if size+skip > switchFromSliceToHeap {
+		return newStoreHeap(size+skip+1, func(i, j *search.DocumentMatch) int {
+			return sort.Compare(i, j)
+		})
+	}
+
+	return newStoreSlice(size+skip+1, func(i, j *search.DocumentMatch) int {
+		return sort.Compare(i, j)
+	})
+}
+
 func newStoreHeap(capacity int, compare collectorCompare) *collectStoreHeap {
 	rv := &collectStoreHeap{
 		heap:    make(search.DocumentMatchCollection, 0, capacity),

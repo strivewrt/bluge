@@ -25,6 +25,8 @@ type SearchRequest interface {
 	Searcher(i search.Reader, config Config) (search.Searcher, error)
 	AddAggregation(name string, aggregation search.Aggregation)
 	Aggregations() search.Aggregations
+	SortOrder() search.SortOrder
+	SizeSkipAndReversed() (int, int, bool)
 }
 
 type SearchOptions struct {
@@ -180,6 +182,10 @@ func (s *TopNSearch) Collector() search.Collector {
 	return collector.NewTopNCollector(s.n, s.from, s.sort)
 }
 
+func (s *TopNSearch) SizeSkipAndReversed() (int, int, bool) {
+	return s.n, s.from, s.reversed
+}
+
 func searchOptionsFromConfig(config Config, options SearchOptions) search.SearcherOptions {
 	return search.SearcherOptions{
 		SimilarityForField: func(field string) search.Similarity {
@@ -236,6 +242,15 @@ func (s *AllMatches) IncludeLocations() *AllMatches {
 
 func (s *AllMatches) Collector() search.Collector {
 	return collector.NewAllCollector()
+}
+
+// SortOrder returns the sort order of the current search
+func (s *AllMatches) SortOrder() search.SortOrder {
+	return nil
+}
+
+func (s *AllMatches) SizeSkipAndReversed() (int, int, bool) {
+	return 0, 0, false
 }
 
 func (s *TopNSearch) AllMatches(i search.Reader, config Config) (search.Searcher, error) {

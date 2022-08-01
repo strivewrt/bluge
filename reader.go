@@ -57,6 +57,27 @@ func (r *Reader) VisitStoredFields(number uint64, visitor StoredFieldVisitor) er
 	return r.reader.VisitStoredFields(number, segment.StoredFieldVisitor(visitor))
 }
 
+func (r *Reader) Searcher(req SearchRequest) (search.Searcher, error) {
+	searcher, err := req.Searcher(r.reader, r.config)
+	if err != nil {
+		return nil, err
+	}
+
+	collector := req.Collector()
+	memNeeded := memNeededForSearch(searcher, collector)
+	if r.config.SearchStartFunc != nil {
+		err = r.config.SearchStartFunc(memNeeded)
+	}
+	if err != nil {
+		return nil, err
+	}
+	if r.config.SearchEndFunc != nil {
+		defer r.config.SearchEndFunc(memNeeded)
+	}
+
+	return searcher, nil
+}
+
 func (r *Reader) Search(ctx context.Context, req SearchRequest) (search.DocumentMatchIterator, error) {
 	collector := req.Collector()
 	searcher, err := req.Searcher(r.reader, r.config)

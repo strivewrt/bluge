@@ -182,7 +182,7 @@ func (s *TopNSearch) Collector() search.Collector {
 	return collector.NewTopNCollector(s.n, s.from, s.sort)
 }
 
-func (s *TopNSearch) SizeSkipAndReversed() (int, int, bool) {
+func (s *TopNSearch) SizeSkipAndReversed() (size int, skip int, reversed bool) {
 	return s.n, s.from, s.reversed
 }
 
@@ -249,7 +249,7 @@ func (s *AllMatches) SortOrder() search.SortOrder {
 	return nil
 }
 
-func (s *AllMatches) SizeSkipAndReversed() (int, int, bool) {
+func (s *AllMatches) SizeSkipAndReversed() (size int, skip int, reversed bool) {
 	return 0, 0, false
 }
 

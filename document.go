@@ -15,7 +15,7 @@
 package bluge
 
 import (
-	segment "github.com/blugelabs/bluge_segment_api"
+	segment "github.com/strivewrt/bluge_segment_api"
 )
 
 type Document struct {

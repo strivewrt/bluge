@@ -17,7 +17,7 @@ package analysis
 import (
 	"reflect"
 
-	segment "github.com/blugelabs/bluge_segment_api"
+	segment "github.com/strivewrt/bluge_segment_api"
 )
 
 var reflectStaticSizeTokenLocation int

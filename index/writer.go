@@ -24,7 +24,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	segment "github.com/blugelabs/bluge_segment_api"
+	segment "github.com/strivewrt/bluge_segment_api"
 
 	"github.com/RoaringBitmap/roaring"
 )

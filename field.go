@@ -22,7 +22,7 @@ import (
 	"github.com/blugelabs/bluge/analysis/analyzer"
 	"github.com/blugelabs/bluge/numeric"
 	"github.com/blugelabs/bluge/numeric/geo"
-	segment "github.com/blugelabs/bluge_segment_api"
+	segment "github.com/strivewrt/bluge_segment_api"
 )
 
 type FieldOptions int

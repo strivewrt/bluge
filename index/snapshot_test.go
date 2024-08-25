@@ -18,7 +18,7 @@ import (
 	"math"
 	"testing"
 
-	segment "github.com/blugelabs/bluge_segment_api"
+	segment "github.com/strivewrt/bluge_segment_api"
 )
 
 func TestIndexReader(t *testing.T) {

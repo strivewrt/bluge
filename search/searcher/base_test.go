@@ -21,7 +21,7 @@ import (
 
 	"github.com/blugelabs/bluge/search"
 
-	segment "github.com/blugelabs/bluge_segment_api"
+	segment "github.com/strivewrt/bluge_segment_api"
 )
 
 var baseTestIndexReaderDirect *stubIndexReader

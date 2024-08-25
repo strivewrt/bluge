@@ -19,7 +19,7 @@ import (
 	"github.com/blugelabs/bluge/numeric/geo"
 	"github.com/blugelabs/bluge/search"
 	"github.com/blugelabs/bluge/search/similarity"
-	segment "github.com/blugelabs/bluge_segment_api"
+	segment "github.com/strivewrt/bluge_segment_api"
 )
 
 type filterFunc func(key []byte) bool

@@ -17,10 +17,10 @@ package index
 import (
 	"math"
 
-	segment "github.com/blugelabs/bluge_segment_api"
+	segment "github.com/strivewrt/bluge_segment_api"
 
 	"github.com/blugelabs/bluge/index/mergeplan"
-	"github.com/blugelabs/ice"
+	"github.com/strivewrt/ice/v2"
 )
 
 type Config struct {
